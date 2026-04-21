@@ -1,3 +1,3 @@
 # Mr-Giova
 
-Pasen cosas de seso
+The best implementation for a QR menu in a restaurant.
