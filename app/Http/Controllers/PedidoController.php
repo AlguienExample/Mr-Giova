@@ -98,7 +98,7 @@ class PedidoController extends Controller
 
             $total = 0;
 
-            // Crear detalles de pedido
+            // Crear detalles de pedido y descontar stock
             foreach ($request->items as $item) {
                 $producto = Producto::find($item['producto_id']);
                 $subtotal = $producto->precio * $item['cantidad'];
@@ -113,6 +113,10 @@ class PedidoController extends Controller
                     'notas_especiales' => $item['notas_especiales'] ?? null,
                     'estado_item' => 'Pendiente'
                 ]);
+
+                // Descontar stock (mínimo 0)
+                $nuevoStock = max(0, $producto->stock - $item['cantidad']);
+                $producto->update(['stock' => $nuevoStock]);
             }
 
             // Actualizar total del pedido
@@ -182,6 +186,14 @@ class PedidoController extends Controller
             if ($pedido->mesa_id) {
                 Mesa::where('id', $pedido->mesa_id)->update(['estado' => 'Disponible']);
             }
+            // Restaurar el stock de los productos cancelados
+            $detalles = DetallePedido::where('pedido_id', $pedido->id)->get();
+            foreach ($detalles as $detalle) {
+                $prod = Producto::find($detalle->producto_id);
+                if ($prod) {
+                    $prod->update(['stock' => $prod->stock + $detalle->cantidad]);
+                }
+            }
         }
 
         $pedido->update($dataUpdate);
@@ -225,7 +237,9 @@ class PedidoController extends Controller
             ->where('estado', '!=', 'Cancelado')
             ->sum('total');
 
-        $pedidosHoy = Pedido::whereDate('created_at', $hoy)->count();
+        $pedidosHoy = Pedido::whereDate('created_at', $hoy)
+            ->where('estado', '!=', 'Cancelado')
+            ->count();
 
         $mesasActivas = Mesa::where('estado', 'Ocupada')->count();
 
@@ -268,20 +282,29 @@ class PedidoController extends Controller
             }
         }
 
-        // 4. Inventario bajo (Simulado de acuerdo al mock del cliente)
-        $inventarioBajo = [
-            ['nombre' => 'Papas Francesas', 'cantidad' => 3, 'unidad' => 'unidades'],
-            ['nombre' => 'Coca-Cola', 'cantidad' => 5, 'unidad' => 'unidades'],
-            ['nombre' => 'Hamburguesa Doble Mr.Giova', 'cantidad' => 2, 'unidad' => 'unidades']
-        ];
+        // 4. Inventario bajo — productos con stock <= 10 desde la base de datos
+        $productosStockBajo = Producto::where('stock', '<=', 10)
+            ->orderBy('stock', 'asc')
+            ->get(['nombre', 'stock']);
 
-        // 5. Estado de mesas
+        $inventarioBajo = $productosStockBajo->map(function ($p) {
+            return [
+                'nombre'   => $p->nombre,
+                'cantidad' => $p->stock,
+                'unidad'   => 'unidades',
+            ];
+        })->values()->all();
+
+        // 5. Estado de mesas (resumen + lista completa con estado real)
         $estadoMesas = [
             'Disponible' => Mesa::where('estado', 'Disponible')->count(),
             'Ocupada' => Mesa::where('estado', 'Ocupada')->count(),
             'Reservada' => Mesa::where('estado', 'Reservada')->count(),
             'Mantenimiento' => Mesa::where('estado', 'Mantenimiento')->count(),
         ];
+
+        // Lista completa de mesas con su estado real para el plano en vivo
+        $mesas = Mesa::orderBy('numero_mesa', 'asc')->get(['id', 'numero_mesa', 'estado']);
 
         return response()->json([
             'kpis' => [
@@ -293,7 +316,8 @@ class PedidoController extends Controller
             'ventas_por_dia' => $ventasPorDia,
             'productos_mas_vendidos' => $productosMasVendidos,
             'inventario_bajo' => $inventarioBajo,
-            'estado_mesas' => $estadoMesas
+            'estado_mesas' => $estadoMesas,
+            'mesas' => $mesas
         ]);
     }
 }

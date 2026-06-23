@@ -23,25 +23,30 @@
                     <h2>Mr.<span>Giova</span></h2>
                 </div>
                 <ul class="sidebar-menu">
-                    <li class="sidebar-item active">
-                        <a href="/cocina"><i class="fa-solid fa-fire-burner"></i> Pedidos Activos</a>
+                    @if(auth()->user()->rol->name === 'Administrador')
+                    <li class="sidebar-item" id="menu-dashboard">
+                        <a href="/admin"><i class="fa-solid fa-chart-pie"></i> Dashboard Admin</a>
                     </li>
-                    <li class="sidebar-item">
-                        <a href="/admin?tab=historial"><i class="fa-solid fa-clock-rotate-left"></i> Historial</a>
+                    <li class="sidebar-item" id="menu-pedidos">
+                        <a href="/admin?tab=historial"><i class="fa-solid fa-receipt"></i> Pedidos e Historial</a>
                     </li>
-                    <li class="sidebar-item">
-                        <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-receipt"></i> Ver Menú Cliente</a>
+                    @endif
+                    <li class="sidebar-item active" id="menu-cocina">
+                        <a href="/cocina"><i class="fa-solid fa-fire-burner"></i> Tablero de Cocina</a>
                     </li>
-                    <li class="sidebar-item">
-                        <a href="/admin"><i class="fa-solid fa-chart-line"></i> Dashboard Admin</a>
+                    <li class="sidebar-item" id="menu-cliente">
+                        <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-utensils"></i> Menú de Clientes</a>
                     </li>
                 </ul>
             </div>
             
             <div class="sidebar-footer">
-                <a href="#" class="sidebar-logout" onclick="alert('Sesión de Cocina Finalizada')">
+                <a href="#" class="sidebar-logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                     <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
                 </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
             </div>
         </aside>
 
@@ -61,7 +66,7 @@
                     
                     <div class="user-profile-badge">
                         <i class="fa-solid fa-kitchen-set"></i>
-                        <span>Chef Principal</span>
+                        <span>{{ auth()->user()->nombres }} ({{ auth()->user()->rol->name }})</span>
                     </div>
                 </div>
             </header>
@@ -150,6 +155,18 @@
                 btn.classList.remove('btn-mrgiova-secondary');
                 btn.style.backgroundColor = 'white';
                 btn.style.color = 'var(--color-terracotta)';
+                
+                // Inicializar o reanudar el contexto de audio en respuesta al clic del usuario
+                try {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                } catch (e) {
+                    console.error("Error al reanudar AudioContext en toggleSound:", e);
+                }
             } else {
                 btn.innerHTML = `<i class="fa-solid fa-volume-xmark"></i> Sonido: Silenciado`;
                 btn.style.backgroundColor = '#BDC3C7';
@@ -163,6 +180,9 @@
             try {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
                 }
                 
                 // Nota 1

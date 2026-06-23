@@ -2,13 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Models\Mesa;
+use App\Http\Controllers\AuthController;
 
+// Redireccionar raíz al menú del cliente (mesa 5 por defecto)
 Route::get('/', function () {
     return redirect('/menu/mesa/5');
 });
 
+// Menú público del cliente (sin autenticación requerida para realizar pedidos)
 Route::get('/menu/mesa/{numero_mesa?}', function ($numero_mesa = 5) {
-    // Buscar la mesa para enviarla como contexto
     $mesa = Mesa::where('numero_mesa', $numero_mesa)->first();
     if (!$mesa) {
         $mesa = Mesa::firstOrCreate(
@@ -19,12 +21,27 @@ Route::get('/menu/mesa/{numero_mesa?}', function ($numero_mesa = 5) {
     return view('menu', compact('mesa'));
 });
 
-Route::get('/cocina', function () {
-    return view('cocina');
+// Rutas de Autenticación para el personal
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Rutas protegidas por Autenticación y Roles
+Route::middleware(['auth'])->group(function () {
+    
+    // Panel de Administración: Restringido únicamente a Administradores
+    Route::middleware(['role:Administrador'])->group(function () {
+        Route::get('/admin', function () {
+            $mesas = Mesa::orderBy('numero_mesa', 'asc')->get();
+            return view('admin', compact('mesas'));
+        });
+    });
+
+    // Tablero de Cocina: Disponible para Cocineros y Administradores
+    Route::middleware(['role:Cocinero,Administrador'])->group(function () {
+        Route::get('/cocina', function () {
+            return view('cocina');
+        });
+    });
 });
 
-Route::get('/admin', function () {
-    // Obtener mesas para el estado de mesas del dashboard admin
-    $mesas = Mesa::orderBy('numero_mesa', 'asc')->get();
-    return view('admin', compact('mesas'));
-});

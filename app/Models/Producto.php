@@ -20,12 +20,14 @@ class Producto extends Model
         'disponible',
         'tiempo_preparacion',
         'ingredientes',
+        'stock',
     ];
 
     protected $casts = [
         'disponible' => 'boolean',
         'precio' => 'decimal:2',
         'tiempo_preparacion' => 'integer',
+        'stock' => 'integer',
     ];
 
     public function categoria()
