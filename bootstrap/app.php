@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,5 +20,59 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+        // Estandarizar respuestas JSON para todas las peticiones API
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Recurso no encontrado.',
+                ], 404);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Datos de entrada inválidos.',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'No autenticado. Inicia sesión para continuar.',
+                ], 401);
+            }
+        });
+
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                \Illuminate\Support\Facades\Log::error('[API Error] ' . $e->getMessage(), [
+                    'url'   => $request->fullUrl(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'error'   => app()->isProduction()
+                        ? 'Error interno del servidor.'
+                        : $e->getMessage(),
+                ], 500);
+            }
+        });
+    })
+    ->booted(function () {
+        // 60 req/min por IP para consultas del menú público
+        RateLimiter::for('public-api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        // 10 pedidos/min por IP para evitar spam de pedidos
+        RateLimiter::for('crear-pedido', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+    })
+    ->create();

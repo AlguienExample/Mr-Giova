@@ -24,7 +24,7 @@ Route::get('/menu/mesa/{numero_mesa?}', function ($numero_mesa = 5) {
 // Rutas de Autenticación para el personal
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
-Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Rutas protegidas por Autenticación y Roles
 Route::middleware(['auth'])->group(function () {
@@ -43,5 +43,10 @@ Route::middleware(['auth'])->group(function () {
             return view('cocina');
         });
     });
-});
 
+    // Terminal de Caja: Disponible para Cajeros y Administradores
+    Route::middleware(['role:Cajero,Administrador'])->group(function () {
+        Route::get('/caja', [\App\Http\Controllers\CajaController::class, 'index'])->name('caja');
+        Route::get('/caja/mesa/{id}/pedido', [\App\Http\Controllers\CajaController::class, 'getPedidoMesa']);
+    });
+});

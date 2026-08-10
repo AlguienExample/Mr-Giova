@@ -2,1154 +2,2358 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mr.Giova - Panel Administrativo</title>
-    <!-- CSS Estilos Mexicanos -->
-    <link rel="stylesheet" href="{{ asset('css/restaurant.css') }}">
-    <!-- FontAwesome para Iconos -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sabor a Pueblo — Panel Administrativo</title>
+    <meta name="description" content="Panel de administración de Sabor a Pueblo: reservas, inventario, mesas y personal.">
+    <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js para Gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Meta CSRF para peticiones AJAX -->
+    <!-- Exportadores corporativos -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>
-        /* Estilos: cuadricula de mesas */
-        .tables-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .table-status-card {
-            background-color: white;
-            border-radius: var(--border-radius-sm);
-            padding: 15px;
-            text-align: center;
-            border: 1px solid rgba(0,0,0,0.06);
-            box-shadow: var(--box-shadow-sm);
-            font-weight: 700;
-        }
-        .table-status-card.disponible { border-top: 5px solid var(--color-jalapeno); color: var(--color-jalapeno); }
-        .table-status-card.ocupada { border-top: 5px solid var(--color-terracotta); color: var(--color-terracotta); }
-        .table-status-card.reservada { border-top: 5px solid var(--color-cempasuchil); color: var(--color-cempasuchil); }
-        .table-status-card.mantenimiento { border-top: 5px solid var(--color-muted); color: var(--color-muted); }
-        .table-status-card-num { font-size: 20px; font-weight: 800; margin-bottom: 5px; }
-        .table-status-card-label { font-size: 11px; text-transform: uppercase; opacity: 0.8; }
-
-        /* ===== INVENTARIO STYLES ===== */
-        .inv-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
-        .inv-search { flex: 1; min-width: 200px; padding: 10px 16px; border: 1.5px solid rgba(211,84,0,0.2); border-radius: 50px; font-size: 14px; outline: none; transition: all 0.2s; background: white; }
-        .inv-search:focus { border-color: var(--color-terracotta); box-shadow: 0 0 0 3px rgba(211,84,0,0.12); }
-        .inv-filter { padding: 10px 16px; border: 1.5px solid rgba(211,84,0,0.2); border-radius: 50px; font-size: 14px; outline: none; cursor: pointer; background: white; color: var(--color-charcoal-dark); transition: all 0.2s; }
-        .inv-filter:focus { border-color: var(--color-terracotta); }
-        .inv-table-wrap { overflow-x: auto; }
-        .inv-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-        .inv-table th { background: var(--color-charcoal-dark); color: white; padding: 12px 14px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .inv-table th:first-child { border-radius: 8px 0 0 0; }
-        .inv-table th:last-child { border-radius: 0 8px 0 0; }
-        .inv-table td { padding: 12px 14px; border-bottom: 1px solid rgba(211,84,0,0.07); vertical-align: middle; }
-        .inv-table tr:hover td { background-color: rgba(211,84,0,0.03); }
-        .inv-table tr:last-child td { border-bottom: none; }
-        .inv-product-img { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; border: 2px solid var(--color-sand); }
-        .inv-product-img-placeholder { width: 52px; height: 52px; border-radius: 8px; background: var(--color-sand); display: flex; align-items: center; justify-content: center; color: var(--color-muted); font-size: 20px; border: 2px dashed rgba(211,84,0,0.2); }
-        .stock-badge { padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 700; display: inline-block; }
-        .stock-badge.ok { background: #E8F8F5; color: var(--color-jalapeno); border: 1px solid rgba(39,174,96,0.3); }
-        .stock-badge.low { background: #FEF9E7; color: #E67E22; border: 1px solid rgba(230,126,34,0.4); }
-        .stock-badge.critical { background: #FDEDEC; color: #E74C3C; border: 1px solid rgba(231,76,60,0.35); }
-        .avail-badge { padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 700; display: inline-block; }
-        .avail-badge.on { background: #E8F8F5; color: var(--color-jalapeno); border: 1px solid rgba(39,174,96,0.3); }
-        .avail-badge.off { background: #FDEDEC; color: #E74C3C; border: 1px solid rgba(231,76,60,0.3); }
-        .inv-action-btn { background: none; border: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
-        .inv-action-btn.edit { color: var(--color-turquoise); } .inv-action-btn.edit:hover { background: rgba(26,188,156,0.1); }
-        .inv-action-btn.del { color: #E74C3C; } .inv-action-btn.del:hover { background: rgba(231,76,60,0.1); }
-
-        /* ===== MODAL INVENTARIO ===== */
-        .inv-modal-overlay { position: fixed; inset: 0; background: rgba(30,43,55,0.55); backdrop-filter: blur(4px); z-index: 9000; display: none; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
-        .inv-modal-overlay.open { display: flex; }
-        .inv-modal { background: white; border-radius: var(--border-radius-md); width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 30px 60px rgba(0,0,0,0.2); animation: slideUp 0.25s ease; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .inv-modal-header { background: var(--color-charcoal-dark); color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; border-radius: var(--border-radius-md) var(--border-radius-md) 0 0; }
-        .inv-modal-header h3 { font-size: 18px; color: white; }
-        .inv-modal-close { background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-        .inv-modal-close:hover { background: rgba(255,255,255,0.25); }
-        .inv-modal-body { padding: 28px 24px; }
-        .inv-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-        .inv-form-group { display: flex; flex-direction: column; gap: 6px; }
-        .inv-form-group.full { grid-column: 1 / -1; }
-        .inv-form-group label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-muted); }
-        .inv-form-group input, .inv-form-group select, .inv-form-group textarea { padding: 10px 14px; border: 1.5px solid rgba(211,84,0,0.2); border-radius: 8px; font-size: 14px; outline: none; transition: all 0.2s; font-family: var(--font-sans); background: white; color: var(--color-charcoal-dark); }
-        .inv-form-group input:focus, .inv-form-group select:focus, .inv-form-group textarea:focus { border-color: var(--color-terracotta); box-shadow: 0 0 0 3px rgba(211,84,0,0.1); }
-        .inv-form-group textarea { resize: vertical; min-height: 80px; }
-        .inv-modal-footer { padding: 16px 24px; border-top: 1px solid rgba(211,84,0,0.1); display: flex; justify-content: flex-end; gap: 12px; background: #FDFAF9; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); }
-        .inv-img-preview { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: none; border: 2px solid var(--color-sand); }
-        .inv-disponible-toggle { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
-        .toggle-switch { position: relative; width: 46px; height: 24px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; border-radius: 24px; transition: .3s; }
-        .toggle-slider:before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
-        .toggle-switch input:checked + .toggle-slider { background-color: var(--color-jalapeno); }
-        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
-        .inv-empty-state { text-align: center; padding: 60px 20px; color: var(--color-muted); }
-        .inv-empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
-        .inv-empty-state p { font-size: 15px; }
-
-        /* Delete confirm modal */
-        .del-modal-overlay { position: fixed; inset: 0; background: rgba(30,43,55,0.6); backdrop-filter: blur(4px); z-index: 9100; display: none; align-items: center; justify-content: center; }
-        .del-modal-overlay.open { display: flex; }
-        .del-modal { background: white; border-radius: var(--border-radius-md); width: 100%; max-width: 420px; padding: 32px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.25); animation: slideUp 0.2s ease; }
-        .del-modal-icon { font-size: 48px; color: #E74C3C; margin-bottom: 16px; }
-        .del-modal h3 { font-size: 20px; color: var(--color-charcoal-dark); margin-bottom: 10px; }
-        .del-modal p { color: var(--color-muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
-        .del-modal-actions { display: flex; gap: 12px; justify-content: center; }
-    </style>
 </head>
-<body>
-    <div class="mexican-border-top"></div>
+<body class="admin-page">
 
-    <div class="dashboard-container">
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div>
-                <div class="sidebar-logo">
-                    <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200" alt="Logo Mr.Giova">
-                    <h2>Mr.<span>Giova</span></h2>
-                </div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-item active" id="menu-dashboard">
-                        <a href="#" onclick="event.preventDefault(); switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Dashboard Admin</a>
-                    </li>
-                    <li class="sidebar-item" id="menu-pedidos">
-                        <a href="#" onclick="event.preventDefault(); switchTab('pedidos')"><i class="fa-solid fa-receipt"></i> Pedidos e Historial</a>
-                    </li>
-                    <li class="sidebar-item" id="menu-inventario">
-                        <a href="#" onclick="event.preventDefault(); switchTab('inventario')"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
-                    </li>
-                    <li class="sidebar-item" id="menu-cocina">
-                        <a href="/cocina"><i class="fa-solid fa-fire-burner"></i> Tablero de Cocina</a>
-                    </li>
-                    <li class="sidebar-item" id="menu-cliente">
-                        <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-utensils"></i> Menú de Clientes</a>
-                    </li>
-                </ul>
-            </div>
-            
-            <div class="sidebar-footer">
-                <a href="#" class="sidebar-logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+<!-- ═══════════════════════════════════════════════════════════
+     TOAST CONTAINER (notificaciones visuales)
+═══════════════════════════════════════════════════════════ -->
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<div class="admin-app">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SIDEBAR
+    ═══════════════════════════════════════════════════════════ -->
+    <aside class="admin-sidebar" role="navigation" aria-label="Menú principal">
+        <div class="admin-sidebar-brand">
+            <h2>Sabor a Pueblo</h2>
+            <div class="subtitle">Panel de Gestión</div>
+        </div>
+
+        <ul class="admin-nav">
+            <li class="admin-nav-item active" id="menu-dashboard">
+                <a href="#" onclick="switchTab('dashboard'); return false;" id="nav-dashboard">
+                    <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Analítica
                 </a>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-                    @csrf
-                </form>
+            </li>
+            <li class="admin-nav-item" id="menu-reservas">
+                <a href="#" onclick="switchTab('reservas'); return false;" id="nav-reservas">
+                    <i class="fa-solid fa-book-open" aria-hidden="true"></i> Reservas
+                </a>
+            </li>
+            <li class="admin-nav-item" id="menu-mesas">
+                <a href="#" onclick="switchTab('mesas'); return false;" id="nav-mesas">
+                    <i class="fa-solid fa-border-all" aria-hidden="true"></i> Plano de Mesas
+                </a>
+            </li>
+            <li class="admin-nav-item" id="menu-personal">
+                <a href="#" onclick="switchTab('personal'); return false;" id="nav-personal">
+                    <i class="fa-solid fa-users-tie" aria-hidden="true"></i> Personal
+                </a>
+            </li>
+            <li class="admin-nav-item" id="menu-inventario">
+                <a href="#" onclick="switchTab('inventario'); return false;" id="nav-inventario">
+                    <i class="fa-solid fa-box-archive" aria-hidden="true"></i> Inventario
+                </a>
+            </li>
+            <li class="admin-nav-item" id="menu-pedidos">
+                <a href="#" onclick="switchTab('pedidos'); return false;" id="nav-pedidos">
+                    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Historial
+                </a>
+            </li>
+        </ul>
+
+        <div class="admin-sidebar-footer">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn-black" style="display:block;text-align:center;width:100%;border:none;cursor:pointer;padding:0;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ÁREA PRINCIPAL
+    ═══════════════════════════════════════════════════════════ -->
+    <main class="admin-main" role="main">
+
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="admin-header-title">
+                <h1 id="pageTitle">
+                    <span class="title-bar"></span>
+                    <span id="pageTitleText">Panel Administrativo</span>
+                </h1>
+                <div id="pageSubtitle" class="content-subtitle" style="margin-top:4px; margin-left:14px;">
+                    Control general de ventas, inventario y estado del local.
+                </div>
             </div>
-        </aside>
-
-        <!-- MAIN CONTENT AREA -->
-        <main class="main-content">
-            <header class="content-header">
-                <div class="content-title">
-                    <h1 id="pageTitle">Panel Administrativo</h1>
-                    <p id="pageSubtitle">Control general de ventas, inventario y estado del local.</p>
+            <div class="admin-header-actions">
+                <div style="display:flex; align-items:center; gap:12px; border-left:1px solid var(--border); padding-left:20px;">
+                    <div style="text-align:right;">
+                        <strong style="display:block; font-size:13px; color:var(--black);">Administrador</strong>
+                        <span style="font-size:11px; color:var(--gray-400);">admin@mrgiova.com</span>
+                    </div>
+                    <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); display:flex; align-items:center; justify-content:center; color:var(--white); font-weight:700; font-family:var(--font-serif); font-size:16px;">
+                        A
+                    </div>
                 </div>
-                
-                <div class="user-profile-badge">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>{{ auth()->user()->nombres }}</span>
-                </div>
-            </header>
+            </div>
+        </header>
 
-            <!-- TAB 1: DASHBOARD -->
+        <div class="admin-content">
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB 1: DASHBOARD (Analítica)
+            ───────────────────────────────────────────────── -->
             <div id="tab-content-dashboard">
-                <!-- STATS CARDS GRID -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h4>Ventas hoy</h4>
-                            <div class="stat-value" id="kpi-ventas">$0</div>
-                        </div>
-                        <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-wallet"></i> Ventas de Hoy</div>
+                        <div class="card-value" id="kpi-ventas">$0</div>
+                        <div class="card-subtext" id="kpi-ventas-subtext">+12.5% vs ayer <i class="fa-solid fa-arrow-trend-up"></i></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h4>Pedidos hoy</h4>
-                            <div class="stat-value" id="kpi-pedidos">0</div>
-                        </div>
-                        <div class="stat-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-receipt"></i> Ticket Promedio</div>
+                        <div class="card-value" id="kpi-ticket">$0</div>
+                        <div class="card-subtext" style="color:var(--gray-400)">Óptimo <i class="fa-solid fa-check"></i></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h4>Mesas activas</h4>
-                            <div class="stat-value" id="kpi-mesas">0</div>
-                        </div>
-                        <div class="stat-icon"><i class="fa-solid fa-chair"></i></div>
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-utensils"></i> Ocupación de Mesas</div>
+                        <div class="card-value" id="kpi-ocupacion">0%</div>
+                        <div class="card-subtext" style="color:var(--gray-400)"><span id="kpi-mesas-text">0/0 Mesas</span></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h4>Ticket promedio</h4>
-                            <div class="stat-value" id="kpi-ticket">$0</div>
-                        </div>
-                        <div class="stat-icon"><i class="fa-solid fa-receipt"></i></div>
+                    <div class="dashboard-card">
+                        <div class="card-label" style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i> Alertas Stock</div>
+                        <div class="card-value" id="kpi-alertas" style="color:var(--danger)">0</div>
+                        <div class="card-subtext alert">Requiere Acción <i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </div>
 
-                <!-- LOWER ADMIN GRID -->
-                <div class="admin-lower-grid">
-                    <!-- Ventas por día Chart -->
-                    <div class="mrgiova-card chart-card">
-                        <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-chart-line" style="color:var(--color-terracotta);"></i> Ventas por Día (Semanal)</h3>
-                        <div style="position: relative; height: 280px; width: 100%;">
-                            <canvas id="salesChart"></canvas>
+                <div class="dashboard-lower-grid">
+                    <div class="panel-box">
+                        <div class="panel-title">
+                            Ventas Semanales
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn-black" id="btn-export-pdf" style="padding:6px 14px; font-size:10px;" onclick="exportarPDF()">
+                                    <i class="fa-regular fa-file-pdf"></i> PDF
+                                </button>
+                                <button class="btn-outline" id="btn-export-excel" style="padding:6px 14px; font-size:10px;" onclick="exportarExcel()">
+                                    <i class="fa-regular fa-file-excel"></i> Excel
+                                </button>
+                            </div>
+                        </div>
+                        <div style="height:300px; width:100%; position:relative;">
+                            <canvas id="salesChart" aria-label="Gráfica de ventas semanales"></canvas>
                         </div>
                     </div>
 
-                    <!-- Productos más vendidos -->
-                    <div class="mrgiova-card">
-                        <h3><i class="fa-solid fa-fire" style="color:var(--color-cempasuchil);"></i> Más Vendidos</h3>
-                        <div class="top-products-list" id="topProductsList">
-                            <!-- Cargados dinámicamente -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- EXTRA ADMIN ROW -->
-                <div class="admin-lower-grid" style="grid-template-columns: 1fr 2fr;">
-                    <!-- Inventario bajo -->
-                    <div class="mrgiova-card">
-                        <h3><i class="fa-solid fa-circle-exclamation" style="color:#C0392B;"></i> Alertas de Stock</h3>
-                        <div class="inventory-list" id="lowStockList">
-                            <!-- Cargados dinámicamente -->
-                        </div>
-                    </div>
-
-                    <!-- Estado de Mesas -->
-                    <div class="mrgiova-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3><i class="fa-solid fa-chair" style="color:var(--color-turquoise);"></i> Estado de Mesas</h3>
-                            <span style="font-size: 12px; color: var(--color-muted); font-weight: 600;">Monitoreo en vivo</span>
-                        </div>
-                        <div class="tables-grid" id="tablesStateGrid">
-                            <!-- Cargados dinámicamente -->
-                            @foreach ($mesas as $mesa)
-                                @php
-                                    $estadoClass = strtolower($mesa->estado);
-                                @endphp
-                                <div class="table-status-card {{ $estadoClass }}" id="admin-mesa-{{ $mesa->id }}">
-                                    <div class="table-status-card-num">Mesa {{ $mesa->numero_mesa }}</div>
-                                    <div class="table-status-card-label">{{ $mesa->estado }}</div>
-                                </div>
-                            @endforeach
+                    <div class="panel-box">
+                        <div class="panel-title">Platos Premium</div>
+                        <ul class="premium-list" id="premiumList">
+                            <li><span style="color:var(--gray-400); font-style:italic;">Cargando...</span></li>
+                        </ul>
+                        <div style="margin-top:20px;">
+                            <button class="btn-black" style="width:100%;">VER MENÚS COMPLETOS</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 2: HISTORIAL DE PEDIDOS -->
-            <div id="tab-content-pedidos" style="display: none;">
-                <div class="mrgiova-card">
-                    <div class="history-filters">
-                        <input type="text" id="historySearch" class="history-search-input" placeholder="Buscar por ID de pedido, Nro de mesa o Cliente..." oninput="searchHistory()">
-                        <select id="historyStatusFilter" class="history-status-select" onchange="searchHistory()">
-                            <option value="Todos">Todos los Estados</option>
-                            <option value="Nuevo">Nuevos</option>
-                            <option value="En_Preparacion">En Preparación</option>
-                            <option value="Listo">Listos</option>
-                            <option value="Entregado">Entregados</option>
-                            <option value="Cancelado">Cancelados</option>
-                        </select>
+            <!-- ─────────────────────────────────────────────────
+                 TAB 2: RESERVAS
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-reservas" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:14px;">
+                    <div>
+                        <div class="content-title">Agenda de Reservas</div>
+                        <div class="content-subtitle">Gestión de comensales y eventos especiales.</div>
                     </div>
-                    <div class="mrgiova-table-wrapper">
-                        <table class="mrgiova-table">
-                            <thead>
-                                <tr>
-                                    <th>ID Pedido</th><th>Mesa</th><th>Cliente</th><th>Tipo</th>
-                                    <th>Total</th><th>Fecha y Hora</th><th>Estado</th><th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody"></tbody>
-                        </table>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px" id="historyPagination">
-                        <span id="historyPaginationInfo" style="font-size:13px;color:var(--color-muted)">Mostrando 0 de 0 resultados</span>
-                        <div style="display:flex;gap:8px">
-                            <button class="btn-mrgiova-secondary" id="btnPrevPage" style="padding:6px 12px;font-size:13px" onclick="changeHistoryPage(-1)"><i class="fa-solid fa-chevron-left"></i> Anterior</button>
-                            <button class="btn-mrgiova-secondary" id="btnNextPage" style="padding:6px 12px;font-size:13px" onclick="changeHistoryPage(1)">Siguiente <i class="fa-solid fa-chevron-right"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 3: INVENTARIO -->
-            <div id="tab-content-inventario" style="display:none">
-                <div class="mrgiova-card">
-                    <!-- Toolbar -->
-                    <div class="inv-toolbar">
-                        <input type="text" id="invSearch" class="inv-search" placeholder="🔍  Buscar producto por nombre..." oninput="filterInventario()">
-                        <select id="invCatFilter" class="inv-filter" onchange="filterInventario()">
-                            <option value="">Todas las categorías</option>
-                        </select>
-                        <button class="btn-mrgiova" id="btnNuevoProducto" onclick="openProductModal()">
-                            <i class="fa-solid fa-plus"></i> Nuevo Producto
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <input type="date" id="filtroFechaReservas" class="form-control" style="width:auto;" onchange="fetchReservas()">
+                        <button class="btn-gold" onclick="openModal('modalReserva')" id="btn-nueva-reserva">
+                            <i class="fa-solid fa-plus"></i> Nueva Reserva
                         </button>
                     </div>
-
-                    <!-- Stats rápidas de inventario -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px" id="invStatsRow"></div>
-
-                    <!-- Tabla de productos -->
-                    <div class="inv-table-wrap">
-                        <table class="inv-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:60px">Img</th>
-                                    <th>Nombre</th>
-                                    <th>Categoría</th>
-                                    <th>Precio</th>
-                                    <th>Stock</th>
-                                    <th>Disponible</th>
-                                    <th style="width:110px">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="invTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- MODAL DETALLE DE PEDIDO HISTORIAL -->
-    <div class="mrgiova-modal" id="orderDetailModal" onclick="closeDetailModalOnBgClick(event)">
-        <div class="modal-content" style="max-height: 80%; border-radius: var(--border-radius-md); margin-top: 5vh; transform: translateY(0); padding-bottom: 20px;">
-            <div style="padding: 20px; border-bottom: 2px solid var(--color-sand); display: flex; justify-content: space-between; align-items: center;">
-                <h3 id="detailModalTitle" style="font-size: 20px;">Detalle del Pedido #----</h3>
-                <button class="modal-close-btn" style="position: static; background-color: var(--color-sand); color: var(--color-charcoal-dark); border: 1px solid rgba(0,0,0,0.15);" onclick="closeDetailModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div class="modal-body" style="padding: 20px; overflow-y: auto;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; font-size: 13px; background-color: var(--color-sand); padding: 15px; border-radius: var(--border-radius-sm);">
-                    <div>
-                        <p><strong>Mesa:</strong> <span id="detailMesa">--</span></p>
-                        <p style="margin-top: 4px;"><strong>Cliente:</strong> <span id="detailCliente">--</span></p>
-                        <p style="margin-top: 4px;"><strong>Tipo de Pedido:</strong> <span id="detailTipo">--</span></p>
-                    </div>
-                    <div>
-                        <p><strong>Estado:</strong> <span id="detailEstadoBadge" class="status-badge nuevo">--</span></p>
-                        <p style="margin-top: 4px;"><strong>Prioridad:</strong> <span id="detailPrioridad">--</span></p>
-                        <p style="margin-top: 4px;"><strong>Total:</strong> <span id="detailTotal" style="color:var(--color-terracotta); font-weight:800; font-size:14px;">--</span></p>
-                    </div>
                 </div>
 
-                <!-- Lista de platillos -->
-                <div class="modifier-group-title" style="margin-bottom: 8px;">Platillos Ordenados</div>
-                <div class="mrgiova-table-wrapper" style="margin-bottom: 20px;">
-                    <table class="mrgiova-table" style="font-size: 13px;">
-                        <thead>
-                            <tr>
-                                <th>Cantidad</th>
-                                <th>Platillo</th>
-                                <th>Precio Unitario</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detailItemsTableBody">
-                            <!-- Dinámico -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Tiempos de preparación -->
-                <div class="modifier-group-title" style="margin-bottom: 8px;">Tiempos del Proceso</div>
-                <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px; background-color: var(--color-sand); padding: 15px; border-radius: var(--border-radius-sm);">
-                    <p><strong>Hora de creación:</strong> <span id="timeCreado">--</span></p>
-                    <p><strong>Inicio de preparación:</strong> <span id="timePreparacion">--</span></p>
-                    <p><strong>Listo para servir:</strong> <span id="timeListo">--</span></p>
-                    <p><strong>Hora de entrega:</strong> <span id="timeEntregado">--</span></p>
-                </div>
-            </div>
-            <div style="padding: 15px 20px; border-top: 1px solid var(--color-sand); display: flex; justify-content: flex-end; gap: 10px; background-color: var(--color-sand-light);" id="detailModalFooter">
-                <button class="btn-mrgiova" style="background-color: #E74C3C; font-size: 13px; padding: 8px 16px; border-radius: var(--border-radius-sm); border: none;" id="btnCancelarPedido" onclick="cancelarPedidoActual()">
-                    <i class="fa-solid fa-ban"></i> Cancelar Pedido
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SCRIPT DASHBOARD Y AUDITORÍA -->
-    <script>
-        let currentTab = 'dashboard';
-        let statsData = null;
-        let chartInstance = null;
-
-        // Historial paginado
-        let historyCurrentPage = 1;
-        let historyLastPage = 1;
-        let historyTotalRecords = 0;
-
-        window.addEventListener('DOMContentLoaded', () => {
-            fetchStats();
-            // Polling stats cada 3 segundos
-            setInterval(fetchStats, 3000);
-            
-            // Check query param for tab
-            const urlParams = new URLSearchParams(window.location.search);
-            const tabParam = urlParams.get('tab');
-            if (tabParam === 'historial' || tabParam === 'pedidos') {
-                switchTab('pedidos');
-            } else if (tabParam === 'inventario') {
-                switchTab('inventario');
-            }
-        });
-
-        // Cambiar pestañas
-        function switchTab(tabName) {
-            currentTab = tabName;
-
-            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-            const menuEl = document.getElementById(`menu-${tabName}`);
-            if (menuEl) menuEl.classList.add('active');
-
-            // Hide all tab panels
-            ['dashboard','pedidos','inventario'].forEach(t => {
-                const el = document.getElementById(`tab-content-${t}`);
-                if (el) el.style.display = 'none';
-            });
-
-            if (tabName === 'dashboard') {
-                document.getElementById('pageTitle').textContent = 'Panel Administrativo';
-                document.getElementById('pageSubtitle').textContent = 'Control general de ventas, inventario y estado del local.';
-                document.getElementById('tab-content-dashboard').style.display = 'block';
-                fetchStats();
-            } else if (tabName === 'pedidos') {
-                document.getElementById('pageTitle').textContent = 'Pedidos e Historial';
-                document.getElementById('pageSubtitle').textContent = 'Historial completo de pedidos, auditoría y control de comandas.';
-                document.getElementById('tab-content-pedidos').style.display = 'block';
-                fetchHistory();
-            } else if (tabName === 'inventario') {
-                document.getElementById('pageTitle').textContent = 'Gestión de Inventario';
-                document.getElementById('pageSubtitle').textContent = 'Administra los productos del menú: stock, precios, disponibilidad y más.';
-                document.getElementById('tab-content-inventario').style.display = 'block';
-                fetchInventario();
-            }
-        }
-
-        // Obtener estadísticas
-        function fetchStats() {
-            fetch('/api/admin/stats')
-                .then(res => res.json())
-                .then(data => {
-                    statsData = data;
-                    renderKpis();
-                    if (currentTab === 'dashboard') {
-                        renderSalesChart();
-                        renderTopProducts();
-                        renderLowStock();
-                        renderTablesState();
-                    }
-                })
-                .catch(err => {
-                    console.error("Error al obtener estadísticas del dashboard", err);
-                });
-        }
-
-        // Renderizar KPIs
-        function renderKpis() {
-            if (!statsData) return;
-            const kpis = statsData.kpis;
-            
-            const formatCol = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
-            
-            document.getElementById('kpi-ventas').textContent = formatCol(kpis.ventas_hoy);
-            document.getElementById('kpi-pedidos').textContent = kpis.pedidos_hoy;
-            document.getElementById('kpi-mesas').textContent = kpis.mesas_activas;
-            document.getElementById('kpi-ticket').textContent = formatCol(kpis.ticket_promedio);
-        }
-
-        // Renderizar Gráfico
-        function renderSalesChart() {
-            if (!statsData || !statsData.ventas_por_dia) return;
-            
-            const labels = statsData.ventas_por_dia.map(item => item.dia);
-            const values = statsData.ventas_por_dia.map(item => item.ventas);
-
-            const ctx = document.getElementById('salesChart').getContext('2d');
-            
-            if (chartInstance) {
-                chartInstance.data.labels = labels;
-                chartInstance.data.datasets[0].data = values;
-                chartInstance.update();
-                return;
-            }
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Ventas ($ COP)',
-                        data: values,
-                        backgroundColor: 'rgba(211, 84, 0, 0.1)',
-                        borderColor: '#D35400',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#F39C12',
-                        pointBorderColor: '#D35400',
-                        pointHoverRadius: 8,
-                        tension: 0.35,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0,0,0,0.04)' },
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value/1000 + 'k';
-                                }
-                            }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Renderizar productos populares
-        function renderTopProducts() {
-            const container = document.getElementById('topProductsList');
-            container.innerHTML = '';
-            
-            if (!statsData || statsData.productos_mas_vendidos.length === 0) {
-                container.innerHTML = `<p style="color:var(--color-muted); font-size:13px; text-align:center;">No hay ventas registradas.</p>`;
-                return;
-            }
-
-            const maxSold = Math.max(...statsData.productos_mas_vendidos.map(p => p.cantidad), 1);
-
-            statsData.productos_mas_vendidos.forEach(p => {
-                let percentage = (p.cantidad / maxSold) * 100;
-                let item = document.createElement('div');
-                item.className = 'top-product-item';
-                item.innerHTML = `
-                    <span class="top-product-name">${p.nombre}</span>
-                    <div class="top-product-progress-wrapper">
-                        <div class="top-product-progress">
-                            <div class="top-product-progress-bar" style="width: ${percentage}%;"></div>
+                <div style="display:flex; gap:28px;">
+                    <div style="flex:2;" id="reservasList">
+                        <div style="text-align:center; padding:60px 0; color:var(--gray-400);">
+                            <i class="fa-regular fa-calendar" style="font-size:40px; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                            Selecciona una fecha para ver las reservas.
                         </div>
                     </div>
-                    <span class="top-product-qty">${p.cantidad}</span>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        // Alertas de Stock
-        function renderLowStock() {
-            const container = document.getElementById('lowStockList');
-            container.innerHTML = '';
-
-            if (!statsData || statsData.inventario_bajo.length === 0) {
-                container.innerHTML = `<p style="color:var(--color-muted); font-size:13px; text-align:center;">Todo el inventario OK.</p>`;
-                return;
-            }
-
-            statsData.inventario_bajo.forEach(item => {
-                let row = document.createElement('div');
-                row.className = 'inventory-item';
-                row.innerHTML = `
-                    <span class="inventory-item-name">${item.nombre}</span>
-                    <span class="inventory-item-qty">${item.cantidad} ${item.unidad}</span>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        // Estado en vivo de mesas
-        function renderTablesState() {
-            if (!statsData || !statsData.mesas) return;
-            // Usar directamente los datos devueltos por el endpoint /api/admin/stats
-            statsData.mesas.forEach(mesa => {
-                const card = document.getElementById(`admin-mesa-${mesa.id}`);
-                if (card) {
-                    const estadoClass = mesa.estado.toLowerCase();
-                    card.className = `table-status-card ${estadoClass}`;
-                    const labelEl = card.querySelector('.table-status-card-label');
-                    if (labelEl) {
-                        labelEl.textContent = mesa.estado;
-                    }
-                }
-            });
-        }
-
-        // --- SECCIÓN: HISTORIAL Y AUDITORÍA ---
-        function fetchHistory() {
-            const search = document.getElementById('historySearch').value;
-            const estado = document.getElementById('historyStatusFilter').value;
-            
-            let url = `/api/pedidos?page=${historyCurrentPage}`;
-            if (search) url += `&search=${encodeURIComponent(search)}`;
-            if (estado) url += `&estado=${encodeURIComponent(estado)}`;
-
-            fetch(url)
-                .then(res => res.json())
-                .then(pagObj => {
-                    historyCurrentPage = pagObj.current_page;
-                    historyLastPage = pagObj.last_page;
-                    historyTotalRecords = pagObj.total;
-                    
-                    renderHistoryTable(pagObj.data);
-                    renderHistoryPagination();
-                })
-                .catch(err => {
-                    console.error("Error al obtener historial", err);
-                });
-        }
-
-        function renderHistoryTable(orders) {
-            const tbody = document.getElementById('historyTableBody');
-            tbody.innerHTML = '';
-
-            if (orders.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--color-muted);">No se encontraron pedidos.</td></tr>`;
-                return;
-            }
-
-            orders.forEach(order => {
-                let fecha = new Date(order.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-                let totalFormatted = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(order.total);
-                let clientName = order.cliente && order.cliente.usuario ? `${order.cliente.usuario.nombres} ${order.cliente.usuario.apellidos}` : 'Invitado';
-                let estLower = order.estado.toLowerCase();
-
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>#${order.id}</strong></td>
-                    <td>Mesa ${order.mesa ? order.mesa.numero_mesa : '?' }</td>
-                    <td>${clientName}</td>
-                    <td>${order.tipo_pedido}</td>
-                    <td><strong style="color:var(--color-terracotta);">${totalFormatted}</strong></td>
-                    <td>${fecha}</td>
-                    <td><span class="status-badge ${estLower === 'en_preparacion' ? 'preparacion' : estLower}">${order.estado}</span></td>
-                    <td><button class="btn-mrgiova" style="padding: 5px 12px; font-size:12px;" onclick="openOrderDetail(${order.id})"><i class="fa-solid fa-eye"></i> Detalles</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderHistoryPagination() {
-            document.getElementById('historyPaginationInfo').textContent = `Mostrando página ${historyCurrentPage} de ${historyLastPage} (${historyTotalRecords} pedidos totales)`;
-            
-            const btnPrev = document.getElementById('btnPrevPage');
-            const btnNext = document.getElementById('btnNextPage');
-            
-            btnPrev.disabled = historyCurrentPage <= 1;
-            btnPrev.style.opacity = historyCurrentPage <= 1 ? 0.5 : 1;
-            
-            btnNext.disabled = historyCurrentPage >= historyLastPage;
-            btnNext.style.opacity = historyCurrentPage >= historyLastPage ? 0.5 : 1;
-        }
-
-        function changeHistoryPage(val) {
-            historyCurrentPage += val;
-            if (historyCurrentPage < 1) historyCurrentPage = 1;
-            if (historyCurrentPage > historyLastPage) historyCurrentPage = historyLastPage;
-            fetchHistory();
-        }
-
-        function searchHistory() {
-            historyCurrentPage = 1;
-            fetchHistory();
-        }
-
-        let currentDetailOrderId = null;
-
-        // DETALLES MODAL EN HISTORIAL
-        function openOrderDetail(pedidoId) {
-            currentDetailOrderId = pedidoId;
-            fetch(`/api/pedidos/${pedidoId}`)
-                .then(res => res.json())
-                .then(order => {
-                    document.getElementById('detailModalTitle').textContent = `Detalle del Pedido #${order.id}`;
-                    document.getElementById('detailMesa').textContent = `Mesa ${order.mesa ? order.mesa.numero_mesa : '?'}`;
-                    document.getElementById('detailCliente').textContent = order.cliente && order.cliente.usuario ? `${order.cliente.usuario.nombres} ${order.cliente.usuario.apellidos} (${order.cliente.usuario.email})` : 'Cliente Invitado';
-                    document.getElementById('detailTipo').textContent = order.tipo_pedido;
-                    document.getElementById('detailPrioridad').textContent = order.prioridad;
-                    
-                    let totalFormatted = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(order.total);
-                    document.getElementById('detailTotal').textContent = totalFormatted;
-
-                    const estBadge = document.getElementById('detailEstadoBadge');
-                    let estLower = order.estado.toLowerCase();
-                    estBadge.className = `status-badge ${estLower === 'en_preparacion' ? 'preparacion' : estLower}`;
-                    estBadge.textContent = order.estado;
-
-                    // Renderizar platillos
-                    const itemsTbody = document.getElementById('detailItemsTableBody');
-                    itemsTbody.innerHTML = '';
-                    order.detalles.forEach(det => {
-                        let unitForm = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(det.precio_unitario);
-                        let subForm = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(det.subtotal);
-                        let noteHtml = det.notas_especiales ? `<br><small style="color:#C0392B; font-style:italic;"><i class="fa-solid fa-pencil"></i> ${det.notas_especiales}</small>` : '';
-
-                        let tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${det.cantidad}</td>
-                            <td><strong>${det.producto.nombre}</strong>${noteHtml}</td>
-                            <td>${unitForm}</td>
-                            <td><strong>${subForm}</strong></td>
-                        `;
-                        itemsTbody.appendChild(tr);
-                    });
-
-                    // Renderizar tiempos
-                    const formatTime = (timeStr) => timeStr ? new Date(timeStr).toLocaleString() : 'Pendiente / N/A';
-                    document.getElementById('timeCreado').textContent = formatTime(order.created_at);
-                    document.getElementById('timePreparacion').textContent = formatTime(order.hora_inicio_preparacion);
-                    document.getElementById('timeListo').textContent = formatTime(order.hora_listo);
-                    document.getElementById('timeEntregado').textContent = formatTime(order.hora_entregado);
-
-                    // Lógica para mostrar/ocultar botón de cancelar
-                    const btnCancelar = document.getElementById('btnCancelarPedido');
-                    if (order.estado !== 'Entregado' && order.estado !== 'Cancelado') {
-                        btnCancelar.style.display = 'inline-flex';
-                    } else {
-                        btnCancelar.style.display = 'none';
-                    }
-
-                    document.getElementById('orderDetailModal').classList.add('open');
-                })
-                .catch(err => {
-                    console.error("Error al obtener detalle de pedido", err);
-                    alert("No se pudo cargar el detalle del pedido.");
-                });
-        }
-
-        function cancelarPedidoActual() {
-            if (currentDetailOrderId) {
-                cancelarPedido(currentDetailOrderId);
-            }
-        }
-
-        function cancelarPedido(id) {
-            if (confirm("¿Estás seguro de que deseas cancelar este pedido? Esta acción liberará la mesa y no se puede deshacer.")) {
-                const btn = document.getElementById('btnCancelarPedido');
-                const originalText = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cancelando...`;
-                
-                fetch(`/api/pedidos/${id}/estado`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ estado: 'Cancelado' })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Pedido cancelado exitosamente.");
-                        closeDetailModal();
-                        fetchStats(); // Actualiza estadísticas del dashboard
-                        if (currentTab === 'pedidos') {
-                            fetchHistory(); // Actualiza tabla de historial
-                        }
-                    } else {
-                        alert("Error al cancelar el pedido: " + (data.error || "Intente de nuevo."));
-                        btn.disabled = false;
-                        btn.innerHTML = originalText;
-                    }
-                })
-                .catch(err => {
-                    console.error("Error al cancelar el pedido", err);
-                    alert("Ocurrió un error al cancelar el pedido.");
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                });
-            }
-        }
-
-        function closeDetailModal() {
-            document.getElementById('orderDetailModal').classList.remove('open');
-        }
-
-        function closeDetailModalOnBgClick(e) {
-            if (e.target.id === 'orderDetailModal') {
-                closeDetailModal();
-            }
-        }
-
-        // ============================================================
-        // ===== INVENTARIO (CRUD de Productos) =======================
-        // ============================================================
-        let invProductos = []; // cache de todos los productos
-        let invCategorias = [];
-        let editingProductId = null;
-        let deletingProductId = null;
-
-        async function fetchInventario() {
-            try {
-                const [prodRes, catRes] = await Promise.all([
-                    fetch('/api/admin/productos'),
-                    fetch('/api/admin/categorias')
-                ]);
-                invProductos = await prodRes.json();
-                invCategorias = await catRes.json();
-                populateCatFilter();
-                renderInventario();
-                renderInvStats();
-            } catch (err) {
-                console.error('Error cargando inventario', err);
-            }
-        }
-
-        function populateCatFilter() {
-            const sel = document.getElementById('invCatFilter');
-            const currentVal = sel.value;
-            sel.innerHTML = '<option value="">Todas las categorías</option>';
-            invCategorias.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.nombre;
-                sel.appendChild(opt);
-            });
-            sel.value = currentVal;
-
-            // Populate modal category select too
-            const mSel = document.getElementById('formCategoria');
-            if (mSel) {
-                mSel.innerHTML = '<option value="">-- Seleccionar --</option>';
-                invCategorias.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.nombre;
-                    mSel.appendChild(opt);
-                });
-            }
-        }
-
-        function filterInventario() {
-            renderInventario();
-        }
-
-        function renderInventario() {
-            const tbody = document.getElementById('invTableBody');
-            const search = document.getElementById('invSearch').value.toLowerCase();
-            const catId = document.getElementById('invCatFilter').value;
-
-            let filtered = invProductos.filter(p => {
-                const matchName = p.nombre.toLowerCase().includes(search);
-                const matchCat = !catId || String(p.categoria_id) === String(catId);
-                return matchName && matchCat;
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="inv-empty-state"><i class="fa-solid fa-box-open"></i><p>No se encontraron productos.</p></div></td></tr>`;
-                return;
-            }
-
-            const formatCOP = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
-
-            tbody.innerHTML = '';
-            filtered.forEach(p => {
-                const tr = document.createElement('tr');
-                const stockClass = p.stock <= 2 ? 'critical' : p.stock <= 10 ? 'low' : 'ok';
-                const stockIcon = p.stock <= 2 ? '🔴' : p.stock <= 10 ? '🟡' : '🟢';
-                const availClass = p.disponible ? 'on' : 'off';
-                const availTxt  = p.disponible ? 'Activo' : 'Inactivo';
-
-                const imgHtml = p.imagen_url
-                    ? `<img src="${p.imagen_url}" class="inv-product-img" alt="${p.nombre}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                       <div class="inv-product-img-placeholder" style="display:none"><i class="fa-solid fa-image"></i></div>`
-                    : `<div class="inv-product-img-placeholder"><i class="fa-solid fa-image"></i></div>`;
-
-                tr.innerHTML = `
-                    <td>${imgHtml}</td>
-                    <td><strong>${p.nombre}</strong><br><small style="color:var(--color-muted);font-size:11px">${p.ingredientes ? p.ingredientes.substring(0,50)+'…' : ''}</small></td>
-                    <td><span style="background:var(--color-sand);padding:3px 10px;border-radius:50px;font-size:12px;font-weight:600">${p.categoria ? p.categoria.nombre : '—'}</span></td>
-                    <td><strong style="color:var(--color-terracotta)">${formatCOP(p.precio)}</strong></td>
-                    <td><span class="stock-badge ${stockClass}">${stockIcon} ${p.stock} uds</span></td>
-                    <td><span class="avail-badge ${availClass}">${availTxt}</span></td>
-                    <td>
-                        <button class="inv-action-btn edit" title="Editar" onclick="openProductModal(${p.id})"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button class="inv-action-btn del" title="Eliminar" onclick="openDeleteModal(${p.id})"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderInvStats() {
-            const total = invProductos.length;
-            const activos = invProductos.filter(p => p.disponible).length;
-            const stockBajo = invProductos.filter(p => p.stock <= 10).length;
-            const criticos = invProductos.filter(p => p.stock <= 2).length;
-
-            document.getElementById('invStatsRow').innerHTML = `
-                <div style="background:#E8F8F5;border-radius:10px;padding:14px 18px;border:1px solid rgba(39,174,96,0.2)">
-                    <div style="font-size:22px;font-weight:800;color:var(--color-jalapeno)">${total}</div>
-                    <div style="font-size:12px;color:var(--color-muted);font-weight:600">Total Productos</div>
-                </div>
-                <div style="background:#E8F8F5;border-radius:10px;padding:14px 18px;border:1px solid rgba(39,174,96,0.2)">
-                    <div style="font-size:22px;font-weight:800;color:var(--color-jalapeno)">${activos}</div>
-                    <div style="font-size:12px;color:var(--color-muted);font-weight:600">Disponibles</div>
-                </div>
-                <div style="background:#FEF9E7;border-radius:10px;padding:14px 18px;border:1px solid rgba(230,126,34,0.25)">
-                    <div style="font-size:22px;font-weight:800;color:#E67E22">${stockBajo}</div>
-                    <div style="font-size:12px;color:var(--color-muted);font-weight:600">Stock Bajo (&le;10)</div>
-                </div>
-                <div style="background:#FDEDEC;border-radius:10px;padding:14px 18px;border:1px solid rgba(231,76,60,0.2)">
-                    <div style="font-size:22px;font-weight:800;color:#E74C3C">${criticos}</div>
-                    <div style="font-size:12px;color:var(--color-muted);font-weight:600">Críticos (&le;2)</div>
-                </div>
-            `;
-        }
-
-        // --- Modal Producto ---
-        function openProductModal(id = null) {
-            editingProductId = id;
-            const modal = document.getElementById('invProductModal');
-            const title = document.getElementById('invModalTitle');
-            const form  = document.getElementById('invProductForm');
-
-            form.reset();
-            document.getElementById('invImgPreview').style.display = 'none';
-            populateCatFilter();
-
-            if (id) {
-                title.textContent = 'Editar Producto';
-                const p = invProductos.find(x => x.id === id);
-                if (p) {
-                    document.getElementById('formNombre').value       = p.nombre;
-                    document.getElementById('formCategoria').value    = p.categoria_id;
-                    document.getElementById('formPrecio').value       = p.precio;
-                    document.getElementById('formStock').value        = p.stock;
-                    document.getElementById('formTiempo').value       = p.tiempo_preparacion || '';
-                    document.getElementById('formDescripcion').value  = p.descripcion || '';
-                    document.getElementById('formIngredientes').value = p.ingredientes || '';
-                    document.getElementById('formImagenUrl').value    = p.imagen_url || '';
-                    document.getElementById('formDisponible').checked = p.disponible;
-                    if (p.imagen_url) {
-                        const img = document.getElementById('invImgPreview');
-                        img.src = p.imagen_url;
-                        img.style.display = 'block';
-                    }
-                }
-            } else {
-                title.textContent = 'Nuevo Producto';
-                document.getElementById('formDisponible').checked = true;
-                document.getElementById('formStock').value = 50;
-            }
-            modal.classList.add('open');
-        }
-
-        function closeProductModal() {
-            document.getElementById('invProductModal').classList.remove('open');
-            editingProductId = null;
-        }
-
-        async function saveProduct() {
-            const btn = document.getElementById('btnSaveProduct');
-            const original = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-
-            const body = {
-                categoria_id:       document.getElementById('formCategoria').value,
-                nombre:             document.getElementById('formNombre').value,
-                precio:             document.getElementById('formPrecio').value,
-                stock:              document.getElementById('formStock').value,
-                tiempo_preparacion: document.getElementById('formTiempo').value || null,
-                descripcion:        document.getElementById('formDescripcion').value,
-                ingredientes:       document.getElementById('formIngredientes').value,
-                imagen_url:         document.getElementById('formImagenUrl').value || null,
-                disponible:         document.getElementById('formDisponible').checked,
-            };
-
-            const isEdit = editingProductId !== null;
-            const url    = isEdit ? `/api/admin/productos/${editingProductId}` : '/api/admin/productos';
-            const method = isEdit ? 'PUT' : 'POST';
-
-            try {
-                const res  = await fetch(url, {
-                    method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (data.success) {
-                    closeProductModal();
-                    await fetchInventario();
-                    showToast(isEdit ? 'Producto actualizado ✓' : 'Producto creado ✓', 'success');
-                } else {
-                    const msgs = data.errors ? Object.values(data.errors).flat().join('\n') : (data.error || 'Error desconocido');
-                    showToast('Error: ' + msgs, 'error');
-                }
-            } catch(err) {
-                console.error(err);
-                showToast('Error de conexión', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = original;
-            }
-        }
-
-        // --- Modal Eliminar ---
-        function openDeleteModal(id) {
-            deletingProductId = id;
-            const p = invProductos.find(x => x.id === id);
-            document.getElementById('delModalNombre').textContent = p ? p.nombre : '';
-            document.getElementById('invDeleteModal').classList.add('open');
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('invDeleteModal').classList.remove('open');
-            deletingProductId = null;
-        }
-
-        async function confirmDelete() {
-            if (!deletingProductId) return;
-            const btn = document.getElementById('btnConfirmDelete');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Eliminando...';
-            try {
-                const res  = await fetch(`/api/admin/productos/${deletingProductId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    closeDeleteModal();
-                    await fetchInventario();
-                    showToast(data.message || 'Producto eliminado ✓', data.message && data.message.includes('marcó') ? 'warning' : 'success');
-                } else {
-                    showToast(data.error || 'No se pudo eliminar', 'error');
-                }
-            } catch(err) {
-                showToast('Error de conexión', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Sí, Eliminar';
-            }
-        }
-
-        // --- Preview imagen en modal ---
-        function previewImage() {
-            const url = document.getElementById('formImagenUrl').value.trim();
-            const img = document.getElementById('invImgPreview');
-            if (url) {
-                img.src = url;
-                img.style.display = 'block';
-                img.onerror = () => { img.style.display = 'none'; };
-            } else {
-                img.style.display = 'none';
-            }
-        }
-
-        // --- Toast notification ---
-        function showToast(msg, type = 'success') {
-            const existing = document.getElementById('mrgiova-toast');
-            if (existing) existing.remove();
-            const colors = { success: '#27AE60', error: '#E74C3C', warning: '#E67E22' };
-            const toast = document.createElement('div');
-            toast.id = 'mrgiova-toast';
-            toast.style.cssText = `position:fixed;bottom:28px;right:28px;background:${colors[type]};color:white;padding:14px 22px;border-radius:10px;font-weight:600;font-size:14px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.2);animation:slideUp 0.3s ease;max-width:340px;line-height:1.4`;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        }
-    </script>
-
-    <!-- ===== MODAL: PRODUCTO (CREAR / EDITAR) ===== -->
-    <div class="inv-modal-overlay" id="invProductModal" onclick="if(event.target===this)closeProductModal()">
-        <div class="inv-modal">
-            <div class="inv-modal-header">
-                <h3 id="invModalTitle">Nuevo Producto</h3>
-                <button class="inv-modal-close" onclick="closeProductModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <form id="invProductForm" onsubmit="event.preventDefault(); saveProduct()">
-                <div class="inv-modal-body">
-                    <div class="inv-form-grid">
-                        <div class="inv-form-group full">
-                            <label>Nombre del Producto *</label>
-                            <input type="text" id="formNombre" placeholder="Ej: Hamburguesa Doble Mr.Giova" required maxlength="150">
-                        </div>
-                        <div class="inv-form-group">
-                            <label>Categoría *</label>
-                            <select id="formCategoria" required>
-                                <option value="">-- Seleccionar --</option>
-                            </select>
-                        </div>
-                        <div class="inv-form-group">
-                            <label>Precio (COP) *</label>
-                            <input type="number" id="formPrecio" placeholder="22900" min="0" step="100" required>
-                        </div>
-                        <div class="inv-form-group">
-                            <label>Stock (Unidades) *</label>
-                            <input type="number" id="formStock" placeholder="50" min="0" required>
-                        </div>
-                        <div class="inv-form-group">
-                            <label>Tiempo Preparación (min)</label>
-                            <input type="number" id="formTiempo" placeholder="15" min="0">
-                        </div>
-                        <div class="inv-form-group full">
-                            <label>Descripción</label>
-                            <textarea id="formDescripcion" placeholder="Descripción corta del producto..."></textarea>
-                        </div>
-                        <div class="inv-form-group full">
-                            <label>Ingredientes</label>
-                            <textarea id="formIngredientes" placeholder="Ingrediente 1, Ingrediente 2, ..."></textarea>
-                        </div>
-                        <div class="inv-form-group full">
-                            <label>URL de Imagen</label>
-                            <input type="url" id="formImagenUrl" placeholder="https://..." oninput="previewImage()">
-                            <img id="invImgPreview" class="inv-img-preview" alt="Vista previa">
-                        </div>
-                        <div class="inv-form-group full">
-                            <label>Disponibilidad</label>
-                            <div class="inv-disponible-toggle">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="formDisponible" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                                <span style="font-size:14px;font-weight:600;color:var(--color-charcoal-dark)">Producto disponible en el menú</span>
+                    <div style="flex:1;">
+                        <div class="panel-box" style="padding:0; overflow:hidden;">
+                            <img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&q=80&w=600"
+                                 style="width:100%; height:260px; object-fit:cover; display:block;"
+                                 alt="Ambiente del restaurante">
+                            <div style="position:relative; padding:24px; background:var(--white);">
+                                <div style="font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--gold-dark); margin-bottom:8px; font-weight:700;">Recomendación del Chef</div>
+                                <div style="font-family:var(--font-serif); font-size:20px; font-style:italic; color:var(--black);">Risotto al Oro Negro con Trufa Fresca</div>
+                                <a href="#" onclick="switchTab('inventario'); return false;" style="font-size:12px; margin-top:12px; display:inline-block; color:var(--gold-dark); font-weight:600;">
+                                    Ver Inventario de Trufa →
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="inv-modal-footer">
-                    <button type="button" class="btn-mrgiova-secondary" onclick="closeProductModal()">Cancelar</button>
-                    <button type="submit" class="btn-mrgiova" id="btnSaveProduct"><i class="fa-solid fa-floppy-disk"></i> Guardar Producto</button>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB 3: PLANO DE MESAS
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-mesas" style="display:none;">
+                <div style="display:flex; gap:20px; margin-bottom:20px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">
+                        <div style="width:12px;height:12px;background:var(--gold-bg);border:2px solid var(--gold);border-radius:2px;"></div>
+                        Disponible
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">
+                        <div style="width:12px;height:12px;background:var(--black);border-radius:2px;"></div>
+                        Ocupada
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">
+                        <div style="width:12px;height:12px;background:var(--gray-300);border-radius:2px;"></div>
+                        Reservada
+                    </div>
+                </div>
+
+                <div class="mesas-layout">
+                    <div class="mesas-map" id="mapaMesas">
+                        <div id="mesasGrid" style="position:relative; width:100%; height:100%;"></div>
+                    </div>
+
+                    <div class="mesas-sidebar">
+                        <div class="mesa-detail-card" id="mesaDetailCard" style="margin-bottom: 20px;">
+                            <h3>Mesa <span id="md-num">--</span></h3>
+                            <div class="detail-row">
+                                <span>Estado</span>
+                                <strong id="md-estado">--</strong>
+                            </div>
+                            <div class="detail-row">
+                                <span>Capacidad</span>
+                                <strong id="md-cap">--</strong>
+                            </div>
+                            <div class="detail-row">
+                                <span>Zona</span>
+                                <strong id="md-zona">--</strong>
+                            </div>
+                            <div class="detail-row">
+                                <span>Personal</span>
+                                <strong id="md-personal">Ninguno</strong>
+                            </div>
+                            <div style="margin-top:28px;">
+                                <button class="btn-black" style="width:100%; margin-bottom:10px;" onclick="openModal('modalComanda')">
+                                    <i class="fa-solid fa-pen-to-square"></i> Gestionar Comanda
+                                </button>
+                                <button id="btnMesaFactura" class="btn-outline" style="width:100%; display:none;">
+                                    <i class="fa-regular fa-file-lines"></i> Ver Factura
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Staff Draggable -->
+                        <div class="panel-box" style="padding: 20px;">
+                            <h4 style="font-family:var(--font-serif); margin-bottom:12px; font-size:15px; color:var(--black); display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-people-carry-box" style="color:var(--gold);"></i> Brigada de Servicio
+                            </h4>
+                            <p style="font-size:11px; color:var(--gray-400); margin-bottom:12px;">Arrastra a un empleado a una mesa para asignarlo.</p>
+                            <div id="staffDraggableList" style="display:flex; flex-direction:column; gap:8px; max-height:240px; overflow-y:auto;">
+                                <!-- Cargado dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB 4: PERSONAL
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-personal" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+                    <div>
+                        <div class="content-title">Personal Elite</div>
+                        <div class="content-subtitle">Gestión de staff y brigada de cocina.</div>
+                    </div>
+                    <button class="btn-gold" onclick="openModal('modalStaff')" id="btn-add-staff">
+                        <i class="fa-solid fa-user-plus"></i> Añadir Staff
+                    </button>
+                </div>
+                <div class="staff-grid" id="staffGrid"></div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB 5: INVENTARIO DE INSUMOS
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-inventario" style="display:none;">
+
+                <!-- Cabecera -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:14px;">
+                    <div>
+                        <div style="font-size:10px; color:var(--gold-dark); text-transform:uppercase; letter-spacing:2px; margin-bottom:5px; font-weight:700;">Métricas de Almacén</div>
+                        <div class="content-title">Inventario de Insumos</div>
+                    </div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn-black" onclick="openModal('modalMateriaPrima')" id="btn-add-insumo">
+                            <i class="fa-solid fa-plus"></i> Añadir Insumo
+                        </button>
+                        <button class="btn-gold" onclick="openModal('modalReposicion')" id="btn-reposicion">
+                            <i class="fa-solid fa-cart-shopping"></i> Pedido de Reposición
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI cards (conectadas al servidor) -->
+                <div class="dashboard-grid" style="margin-bottom:24px;">
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-regular fa-gem"></i> Valor Total</div>
+                        <div class="card-value" id="inv-valor-total">—</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label" style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i> Alertas Stock</div>
+                        <div class="card-value" style="color:var(--danger)" id="inv-alertas">0</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-arrow-trend-up"></i> Rotación Mensual</div>
+                        <div class="card-value" id="inv-rotacion">—</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-box-open"></i> Items Activos</div>
+                        <div class="card-value" id="inv-items">—</div>
+                    </div>
+                </div>
+
+                <!-- Toolbar: búsqueda + filtro + exportación -->
+                <div class="inv-toolbar">
+                    <div class="search-bar" style="width:260px;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="invSearch" placeholder="Buscar insumo..." oninput="filterAndRenderInventory()">
+                    </div>
+                    <select id="invCategoryFilter" class="inv-select" onchange="filterAndRenderInventory()">
+                        <option value="">Todas las categorías</option>
+                        <option value="Carnes">Carnes</option>
+                        <option value="Delicatessen">Delicatessen</option>
+                        <option value="Bodega Exclusiva">Bodega Exclusiva</option>
+                        <option value="Pescados & Mariscos">Pescados & Mariscos</option>
+                        <option value="Verduras">Verduras</option>
+                        <option value="Lácteos">Lácteos</option>
+                    </select>
+                    <select id="invStatusFilter" class="inv-select" onchange="filterAndRenderInventory()">
+                        <option value="">Todos los estados</option>
+                        <option value="ÓPTIMO">Óptimo</option>
+                        <option value="CRÍTICO">Crítico</option>
+                    </select>
+                    <div style="margin-left:auto; display:flex; gap:8px;">
+                        <button class="btn-outline" onclick="exportCSV()" id="btn-export-csv" title="Exportar como CSV">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                        <button class="btn-outline" onclick="exportJSON()" id="btn-export-json" title="Exportar como JSON">
+                            <i class="fa-solid fa-file-code"></i> JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabla de inventario -->
+                <div class="panel-box" style="padding:0; overflow:hidden;">
+                    <table class="haute-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortInventory('nombre')" id="th-nombre">
+                                    Ingrediente <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" onclick="sortInventory('categoria')" id="th-categoria">
+                                    Categoría <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" onclick="sortInventory('stock')" id="th-stock">
+                                    Stock Actual <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" onclick="sortInventory('precio')" id="th-precio">
+                                    Costo Unitario <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" onclick="sortInventory('estado')" id="th-estado">
+                                    Estado <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th style="width:80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <tr>
+                                <td colspan="6" class="table-empty">
+                                    <i class="fa-solid fa-box-open"></i>
+                                    Cargando inventario...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Paginación -->
+                    <div class="pagination-bar" id="invPaginationBar">
+                        <span id="invPaginationInfo">0 resultados</span>
+                        <div style="display:flex; align-items:center; gap:14px;">
+                            <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                                <label for="invPageSize">Por página:</label>
+                                <select id="invPageSize" class="inv-select" style="padding:4px 8px;" onchange="changePageSize()">
+                                    <option value="5">5</option>
+                                    <option value="10" selected>10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                            <div class="pagination-controls" id="invPaginationControls"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nota de protocolo -->
+                <div style="padding:16px 20px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:16px; display:flex; align-items:flex-start; gap:12px;">
+                    <i class="fa-solid fa-circle-info" style="color:var(--gold-dark); margin-top:2px; flex-shrink:0;"></i>
+                    <div style="font-size:12px; color:var(--gray-600);">
+                        <strong style="display:block; margin-bottom:4px; color:var(--gray-800);">PROTOCOLO DE REPOSICIÓN</strong>
+                        Los artículos marcados como <span style="color:var(--danger); font-weight:700;">CRÍTICO</span> requieren reposición inmediata.
+                        Usa el botón "Pedido de Reposición" para notificar a proveedores con autorización del gerente.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB 6: HISTORIAL DE PEDIDOS
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-pedidos" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; flex-wrap:wrap; gap:14px;">
+                    <div>
+                        <div class="content-title">Historial de Pedidos</div>
+                        <div class="content-subtitle">Registro completo de operaciones y ventas.</div>
+                    </div>
+                    <div class="search-bar" style="background:var(--white); border:1px solid var(--border);">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="pedidosSearch" placeholder="Buscar por ID o Mesa..." oninput="fetchHistorial()">
+                    </div>
+                </div>
+
+                <div class="panel-box" style="padding:0; overflow:hidden;">
+                    <table class="haute-table">
+                        <thead>
+                            <tr>
+                                <th>ID Pedido</th>
+                                <th>Fecha</th>
+                                <th>Cliente / Mesa</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialTableBody">
+                            <tr>
+                                <td colspan="6" class="table-empty">
+                                    <i class="fa-solid fa-receipt"></i>
+                                    Cargando historial...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /admin-content -->
+    </main>
+</div><!-- /admin-app -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODALES
+═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Modal: Editar Reserva ── -->
+<div class="mrgiova-modal" id="modalEditarReserva" role="dialog" aria-modal="true" aria-labelledby="modalEditarReservaTitulo">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header">
+            <h3 id="modalEditarReservaTitulo"><i class="fa-solid fa-pen-to-square" style="color:var(--gold-dark); margin-right:8px;"></i> Editar Reserva</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalEditarReserva')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formEditarReserva" onsubmit="submitEditarReserva(event)" novalidate>
+                <input type="hidden" id="editReservaId">
+
+                <div class="form-group">
+                    <label for="editReservaNombre">Nombre del Cliente *</label>
+                    <input type="text" id="editReservaNombre" class="form-control" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editReservaFecha">Fecha *</label>
+                        <input type="date" id="editReservaFecha" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editReservaHora">Hora *</label>
+                        <input type="time" id="editReservaHora" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editReservaPersonas">Comensales *</label>
+                        <input type="number" id="editReservaPersonas" class="form-control" min="1" max="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editReservaMesa">Mesa *</label>
+                        <select id="editReservaMesa" class="form-control" required>
+                            <option value="">— Seleccionar —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editReservaEstado">Estado</label>
+                    <select id="editReservaEstado" class="form-control" required>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Confirmada">Confirmada</option>
+                        <option value="Cancelada">Cancelada</option>
+                        <option value="Completada">Completada</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="editReservaNotas">Notas adicionales</label>
+                    <textarea id="editReservaNotas" class="form-control" rows="2" placeholder="VIP, alergias, preferencias..."></textarea>
+                </div>
+
+                <div style="background:#FFF3CD; border:1px solid #FFECB5; border-radius:6px; padding:10px 12px; font-size:11px; color:#856404; margin-bottom:14px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Al guardar, el cliente recibirá una notificación automática del cambio.
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalEditarReserva')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;" id="btnSubmitEditarReserva">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                    </button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 
-    <!-- ===== MODAL: CONFIRMAR ELIMINAR ===== -->
-    <div class="del-modal-overlay" id="invDeleteModal" onclick="if(event.target===this)closeDeleteModal()">
-        <div class="del-modal">
-            <div class="del-modal-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <h3>¿Eliminar Producto?</h3>
-            <p>Estás a punto de eliminar <strong id="delModalNombre"></strong>. Si tiene pedidos asociados, se marcará como no disponible en lugar de eliminarse.</p>
-            <div class="del-modal-actions">
-                <button class="btn-mrgiova-secondary" onclick="closeDeleteModal()">Cancelar</button>
-                <button class="btn-mrgiova" id="btnConfirmDelete" style="background:#E74C3C" onclick="confirmDelete()"><i class="fa-solid fa-trash-can"></i> Sí, Eliminar</button>
+<!-- ── Modal: Confirmar Eliminación de Reserva ── -->
+<div class="mrgiova-modal" id="modalEliminarReserva" role="dialog" aria-modal="true" aria-labelledby="modalEliminarReservaTitulo">
+    <div class="modal-content" style="max-width:440px;">
+        <div class="modal-header" style="border-bottom:1px solid var(--danger-light, #FFCDD2);">
+            <h3 id="modalEliminarReservaTitulo" style="color:var(--danger);"><i class="fa-solid fa-trash-can" style="margin-right:8px;"></i> Cancelar Reserva</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalEliminarReserva')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eliminarReservaId">
+            <div style="text-align:center; padding:10px 0 20px;">
+                <i class="fa-solid fa-calendar-xmark" style="font-size:40px; color:var(--danger); opacity:0.7; margin-bottom:14px; display:block;"></i>
+                <p style="font-size:14px; color:var(--gray-800); margin-bottom:8px;">
+                    ¿Estás seguro de que deseas eliminar la reserva de<br>
+                    <strong id="eliminarReservaNombre" style="color:var(--black);"></strong>?
+                </p>
+                <p style="font-size:12px; color:var(--gray-400);">
+                    El cliente recibirá una notificación automática de cancelación.
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-outline" style="flex:1;" onclick="closeModal('modalEliminarReserva')">Volver</button>
+                <button class="btn-danger" style="flex:2;" id="btnConfirmarEliminar" onclick="confirmarEliminarReserva()">
+                    <i class="fa-solid fa-trash"></i> Sí, Cancelar Reserva
+                </button>
             </div>
         </div>
     </div>
+</div>
+
+<!-- ── Modal: Nueva Reserva ── -->
+<div class="mrgiova-modal" id="modalReserva" role="dialog" aria-modal="true" aria-labelledby="modalReservaTitulo">
+    <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header">
+            <h3 id="modalReservaTitulo"><i class="fa-regular fa-calendar-plus" style="color:var(--gold-dark); margin-right:8px;"></i> Nueva Reserva</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalReserva')" aria-label="Cerrar modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formReserva" onsubmit="submitReserva(event)" novalidate>
+
+                <div class="form-group">
+                    <label for="reservaNombre">Nombre del Cliente *</label>
+                    <input type="text" id="reservaNombre" class="form-control" placeholder="Ej: García, Carlos" required>
+                    <div class="form-error-text" id="err-reservaNombre">El nombre es obligatorio.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reservaFecha">Fecha *</label>
+                        <input type="date" id="reservaFecha" class="form-control" required>
+                        <div class="form-error-text" id="err-reservaFecha">Selecciona una fecha válida.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reservaHora">Hora *</label>
+                        <input type="time" id="reservaHora" class="form-control" required>
+                        <div class="form-error-text" id="err-reservaHora">Selecciona la hora.</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reservaPersonas">Comensales *</label>
+                        <input type="number" id="reservaPersonas" class="form-control" min="1" max="50" placeholder="Ej: 4" required>
+                        <div class="form-error-text" id="err-reservaPersonas">Indica el número de comensales.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reservaMesa">Mesa Asignada *</label>
+                        <select id="reservaMesa" class="form-control" required>
+                            <option value="">— Seleccionar mesa —</option>
+                        </select>
+                        <div class="form-error-text" id="err-reservaMesa">Debes asignar una mesa.</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reservaNotas">Notas (VIP, alergias, preferencias)</label>
+                    <textarea id="reservaNotas" class="form-control" rows="2" placeholder="Ej: VIP — Alergia a nueces"></textarea>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalReserva')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;" id="btnSubmitReserva">
+                        <i class="fa-solid fa-check"></i> Confirmar Reserva
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Añadir Materia Prima (INVENTARIO) ── -->
+<div class="mrgiova-modal" id="modalMateriaPrima" role="dialog" aria-modal="true" aria-labelledby="modalMateriaPrimaTitulo">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3 id="modalMateriaPrimaTitulo"><i class="fa-solid fa-boxes-stacked" style="color:var(--gold-dark); margin-right:8px;"></i> Añadir Insumo</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalMateriaPrima')" aria-label="Cerrar modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formMateriaPrima" onsubmit="submitMateriaPrima(event)" novalidate>
+
+                <div class="form-group">
+                    <label for="mpNombre">Nombre del Insumo *</label>
+                    <input type="text" id="mpNombre" class="form-control" placeholder="Ej: Wagyu A5 Japonés" required>
+                    <div class="form-error-text" id="err-mpNombre">El nombre es obligatorio.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mpCategoria">Categoría *</label>
+                        <select id="mpCategoria" class="form-control" required onchange="checkCategoriaMP()">
+                            <option value="">— Seleccionar —</option>
+                            <option value="Carnes">Carnes</option>
+                            <option value="Delicatessen">Delicatessen</option>
+                            <option value="Bodega Exclusiva">Bodega Exclusiva</option>
+                            <option value="Pescados & Mariscos">Pescados & Mariscos</option>
+                            <option value="Verduras">Verduras</option>
+                            <option value="Lácteos">Lácteos</option>
+                        </select>
+                        <div class="form-error-text" id="err-mpCategoria">Selecciona una categoría.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="mpUnidad">Unidad de Medida *</label>
+                        <select id="mpUnidad" class="form-control" required>
+                            <option value="">— Seleccionar —</option>
+                            <option value="kg">Kilogramos (kg)</option>
+                            <option value="g">Gramos (g)</option>
+                            <option value="litros">Litros</option>
+                            <option value="ml">Mililitros (ml)</option>
+                            <option value="unidades">Unidades</option>
+                            <option value="botellas">Botellas</option>
+                            <option value="cajas">Cajas</option>
+                        </select>
+                        <div class="form-error-text" id="err-mpUnidad">Selecciona la unidad de medida.</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mpCantidad">Stock Actual *</label>
+                        <input type="number" id="mpCantidad" class="form-control" min="0" step="0.01" placeholder="0.00" required>
+                        <div class="form-error-text" id="err-mpCantidad">Ingresa la cantidad actual.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="mpStockMinimo">Stock Mínimo *</label>
+                        <input type="number" id="mpStockMinimo" class="form-control" min="0" step="0.01" placeholder="0.00" required>
+                        <div class="form-error-text" id="err-mpStockMinimo">Ingresa el stock mínimo.</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="mpCosto">Costo Unitario (COP) *</label>
+                    <input type="number" id="mpCosto" class="form-control" min="0" step="0.01" placeholder="0.00" required oninput="calcularPorcion()">
+                    <div class="form-error-text" id="err-mpCosto">Ingresa el costo unitario.</div>
+                </div>
+
+                <!-- Calculadora de porción (solo para Carnes) -->
+                <div id="mpCalculadoraPorcion" class="calc-box" style="display:none;">
+                    <strong style="font-size:12px; display:block; margin-bottom:10px; color:var(--gold-dark);">
+                        <i class="fa-solid fa-calculator"></i> Calculadora de Porción
+                    </strong>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="number" id="mpPesoPorcion" class="form-control" placeholder="Gramos por porción" min="1" oninput="calcularPorcion()" style="flex:1;">
+                        <span style="font-size:12px; color:var(--gray-400); white-space:nowrap;">gr / porción</span>
+                    </div>
+                    <div class="calc-result" id="mpCostoPorcionRes">Ingresa el costo y el peso por porción.</div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:16px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalMateriaPrima')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;" id="btnSubmitMateriaPrima">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Insumo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Añadir Staff ── -->
+<div class="mrgiova-modal" id="modalStaff" role="dialog" aria-modal="true" aria-labelledby="modalStaffTitulo">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 id="modalStaffTitulo"><i class="fa-solid fa-user-plus" style="color:var(--gold-dark); margin-right:8px;"></i> Añadir Staff Elite</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalStaff')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formStaff" onsubmit="submitStaff(event)">
+                <div class="form-group">
+                    <label for="staffNombre">Nombres Completos *</label>
+                    <input type="text" id="staffNombre" class="form-control" required placeholder="Ej: Juan Pérez Rodríguez">
+                </div>
+                <div class="form-group">
+                    <label for="staffCargo">Cargo *</label>
+                    <select id="staffCargo" class="form-control" required>
+                        <option value="">— Seleccionar —</option>
+                        <option>Chef Ejecutivo</option>
+                        <option>Sous Chef</option>
+                        <option>Sommelier</option>
+                        <option>Maître D'</option>
+                        <option>Mesero</option>
+                        <option>Cajero</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="staffRol">Rol del sistema *</label>
+                    <select id="staffRol" class="form-control" required>
+                        <option value="">— Seleccionar —</option>
+                        <option value="Cocinero">Cocinero</option>
+                        <option value="Cajero">Cajero</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalStaff')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;">
+                        <i class="fa-solid fa-check"></i> Registrar Empleado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Pedido de Reposición ── -->
+<div class="mrgiova-modal" id="modalReposicion" role="dialog" aria-modal="true" aria-labelledby="modalReposicionTitulo">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 id="modalReposicionTitulo"><i class="fa-solid fa-truck" style="color:var(--gold-dark); margin-right:8px;"></i> Pedido a Proveedores</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalReposicion')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px; margin-bottom:20px; color:var(--gray-600);">
+                Se generará un pedido automático para todos los ítems marcados como
+                <span style="color:var(--danger); font-weight:700;">CRÍTICO</span>.
+            </p>
+            <form id="formReposicion" onsubmit="submitReposicion(event)">
+                <div class="form-group" style="margin-bottom:24px;">
+                    <label for="repPin">Firma de Autorización (PIN)</label>
+                    <input type="password" id="repPin" class="form-control" required
+                           placeholder="••••" style="letter-spacing:6px; text-align:center; font-size:18px;">
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalReposicion')">Cancelar</button>
+                    <button type="submit" class="btn-black" style="flex:2;">
+                        <i class="fa-solid fa-paper-plane"></i> Confirmar Reposición
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Gestionar Comanda ── -->
+<div class="mrgiova-modal" id="modalComanda" role="dialog" aria-modal="true" aria-labelledby="modalComandaTitulo">
+    <div class="modal-content" style="max-width:400px;">
+        <div class="modal-header">
+            <h3 id="modalComandaTitulo">Gestionar Comanda</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalComanda')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formComanda" onsubmit="submitComanda(event)">
+                <p style="font-size:13px; margin-bottom:18px; color:var(--gray-600);">Acción requerida para la mesa seleccionada.</p>
+                <div class="form-group" style="margin-bottom:24px;">
+                    <label for="comandaAccion">Acción</label>
+                    <select id="comandaAccion" class="form-control" required>
+                        <option>Abrir Mesa</option>
+                        <option>Añadir a Pedido Existente</option>
+                        <option>Cerrar Mesa (Pedir Cuenta)</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalComanda')">Cancelar</button>
+                    <button type="submit" class="btn-black" style="flex:2;">
+                        <i class="fa-solid fa-bolt"></i> Ejecutar Acción
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Ver Ticket ── -->
+<div class="mrgiova-modal" id="modalTicket" role="dialog" aria-modal="true" aria-labelledby="modalTicketTitulo">
+    <div class="modal-content" style="max-width:440px; background:#fffdf9;">
+        <div class="modal-header" style="border-bottom:1px dashed var(--gold);">
+            <h3 id="modalTicketTitulo" style="color:var(--gold-dark);">
+                Ticket de Venta <span id="ticketNum"></span>
+            </h3>
+            <button class="modal-close-btn" onclick="closeModal('modalTicket')" aria-label="Cerrar" style="color:var(--gold-dark);">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="font-family:var(--font-mono); font-size:13px;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <strong style="font-family:var(--font-serif); font-size:22px; display:block;">Mr. Giova</strong>
+                <span style="font-size:12px; color:var(--gray-600);">Restaurante Elite</span><br>
+                <span id="ticketDate" style="font-size:11px; color:var(--gray-400);"></span>
+            </div>
+            <div style="border-bottom:1px dashed var(--border); padding-bottom:12px; margin-bottom:14px;">
+                <div><strong>Cliente:</strong> <span id="ticketClient"></span></div>
+                <div><strong>Mesa:</strong> <span id="ticketMesa"></span></div>
+            </div>
+            <div id="ticketItems" style="margin-bottom:18px;"></div>
+            <div style="border-top:1px dashed var(--border); padding-top:14px; text-align:right; font-size:16px;">
+                <strong>Total: <span id="ticketTotal" style="color:var(--gold-dark);"></span></strong>
+            </div>
+            <div style="margin-top:24px;">
+                <button class="btn-gold" style="width:100%;" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Imprimir Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS GLOBALES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Formatea un valor como moneda COP */
+function formatCOP(val) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+}
+
+/** Obtiene el token CSRF del meta tag */
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+/** Headers estándar para peticiones JSON */
+function jsonHeaders() {
+    return { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SISTEMA DE TOASTS (reemplaza alert() por completo)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Muestra una notificación toast.
+ * @param {string} title - Título corto
+ * @param {string} message - Mensaje detallado
+ * @param {'success'|'error'|'warning'|'info'} type - Tipo de notificación
+ */
+function showToast(title, message = '', type = 'success') {
+    const icons = {
+        success: 'fa-circle-check',
+        error:   'fa-circle-xmark',
+        warning: 'fa-triangle-exclamation',
+        info:    'fa-circle-info',
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            ${message ? `<div class="toast-message">${message}</div>` : ''}
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+
+    document.getElementById('toastContainer').appendChild(toast);
+
+    // Animar entrada
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
+    // Auto-eliminar tras 4 segundos
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 4500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVEGACIÓN POR TABS
+// ─────────────────────────────────────────────────────────────────────────────
+
+let currentTab = 'dashboard';
+
+const tabConfig = {
+    dashboard:  { title: 'Panel Administrativo', sub: 'Control general de ventas, inventario y estado del local.', fn: fetchStats },
+    reservas:   { title: 'Agenda de Reservas',   sub: 'Gestión de comensales y eventos especiales.',              fn: fetchReservas },
+    mesas:      { title: 'Plano de Mesas',        sub: 'Asignación y estado de mesas en tiempo real.',            fn: fetchMesas },
+    personal:   { title: 'Gestión de Personal',   sub: 'Administración del equipo Elite.',                        fn: fetchStaff },
+    inventario: { title: 'Control de Insumos',    sub: 'Inventario de ingredientes y materias primas.',           fn: fetchInsumos },
+    pedidos:    { title: 'Historial de Pedidos',  sub: 'Registro de todas las operaciones.',                      fn: fetchHistorial },
+};
+
+function switchTab(tabName) {
+    currentTab = tabName;
+
+    // Actualizar nav
+    document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`menu-${tabName}`).classList.add('active');
+
+    // Mostrar/ocultar contenido
+    Object.keys(tabConfig).forEach(t => {
+        document.getElementById(`tab-content-${t}`).style.display = 'none';
+    });
+    document.getElementById(`tab-content-${tabName}`).style.display = 'block';
+
+    // Actualizar header
+    const cfg = tabConfig[tabName];
+    document.getElementById('pageTitleText').textContent = cfg.title;
+    document.getElementById('pageSubtitle').textContent  = cfg.sub;
+
+    // Ejecutar función de carga
+    if (cfg.fn) cfg.fn();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODALES
+// ─────────────────────────────────────────────────────────────────────────────
+
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.mrgiova-modal.open').forEach(m => m.classList.remove('open'));
+        document.body.style.overflow = '';
+    }
+});
+
+// Cerrar al hacer click en el fondo oscuro
+document.querySelectorAll('.mrgiova-modal').forEach(modal => {
+    modal.addEventListener('click', e => {
+        if (e.target === modal) {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INICIALIZACIÓN
+// ─────────────────────────────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Cargar dashboard al inicio
+    fetchStats();
+    
+    // Conexión simulada en tiempo real (Event-driven poll cada 7 segundos para platos premium y KPIs)
+    setInterval(() => {
+        fetchStats();
+    }, 7000);
+
+    // Precargar mesas para el selector de reservas
+    fetch('/api/admin/mesas')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('reservaMesa');
+            data.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `Mesa ${m.numero_mesa} (${m.capacidad} pax) — ${m.estado}`;
+                if (m.estado === 'Ocupada') opt.disabled = true;
+                select.appendChild(opt);
+            });
+        })
+        .catch(() => {}); // silencioso
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. DASHBOARD — Estadísticas con sincronización de fecha del dispositivo
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Almacenar meta de semana para exportadores
+let _metaSemana = null;
+let _ventasPorDia = [];
+
+function fetchStats() {
+    // Enviar la fecha LOCAL del dispositivo del administrador para sincronización
+    const fechaHoyLocal = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en zona local
+    const url = `/api/admin/stats?current_date=${fechaHoyLocal}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('kpi-ventas').textContent   = formatCOP(data.kpis.ventas_hoy);
+            document.getElementById('kpi-ticket').textContent   = formatCOP(data.kpis.ticket_promedio);
+
+            const varPct = data.kpis.variacion_ventas;
+            const subtextEl = document.getElementById('kpi-ventas-subtext');
+            if (subtextEl) {
+                if (varPct >= 0) {
+                    subtextEl.innerHTML = `<span style="color:var(--success); font-weight:700;">+${varPct.toFixed(1)}%</span> vs ayer <i class="fa-solid fa-arrow-trend-up" style="color:var(--success)"></i>`;
+                } else {
+                    subtextEl.innerHTML = `<span style="color:var(--danger); font-weight:700;">${varPct.toFixed(1)}%</span> vs ayer <i class="fa-solid fa-arrow-trend-down" style="color:var(--danger)"></i>`;
+                }
+            }
+
+            const pOcup = data.kpis.total_mesas > 0
+                ? Math.round((data.kpis.mesas_activas / data.kpis.total_mesas) * 100)
+                : 0;
+            document.getElementById('kpi-ocupacion').textContent  = pOcup + '%';
+            document.getElementById('kpi-mesas-text').textContent = `${data.kpis.mesas_activas}/${data.kpis.total_mesas} Mesas`;
+            document.getElementById('kpi-alertas').textContent    = data.kpis.alertas_stock.toString().padStart(2, '0');
+
+            // Guardar metadatos para exportadores
+            _metaSemana  = data.meta_semana;
+            _ventasPorDia = data.ventas_por_dia;
+
+            renderSalesChart(data.ventas_por_dia);
+
+            // Platos Premium
+            const ul = document.getElementById('premiumList');
+            ul.innerHTML = '';
+            if (!data.productos_premium || data.productos_premium.length === 0) {
+                ul.innerHTML = '<li><span style="color:var(--gray-400); font-style:italic;">Sin datos de platos premium.</span></li>';
+                return;
+            }
+            data.productos_premium.forEach(p => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${p.nombre}</span> <strong class="text-gold">${p.cantidad} ord.</strong>`;
+                ul.appendChild(li);
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudieron cargar las estadísticas.', 'error'));
+}
+
+let chartInstance = null;
+
+function renderSalesChart(data) {
+    const labels  = data.map(d => d.dia);
+    const values  = data.map(d => d.ventas);
+    const bgColors = data.map(d =>
+        d.es_hoy    ? 'rgba(179, 142, 93, 0.5)'  :
+        d.es_futuro ? 'rgba(200,200,200,0.15)'    :
+                      'rgba(179, 142, 93, 0.12)'
+    );
+    const borderColors = data.map(d =>
+        d.es_hoy    ? 'rgba(179, 142, 93, 1.0)'   :
+        d.es_futuro ? 'rgba(200,200,200,0.4)'      :
+                      'rgba(179, 142, 93, 0.7)'
+    );
+    const ctx = document.getElementById('salesChart').getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.data.labels                 = labels;
+        chartInstance.data.datasets[0].data        = values;
+        chartInstance.data.datasets[0].backgroundColor  = bgColors;
+        chartInstance.data.datasets[0].borderColor      = borderColors;
+        chartInstance.update();
+        return;
+    }
+
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Ventas',
+                data: values,
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.04)' },
+                    ticks: { callback: v => '$' + (v / 1000) + 'k', font: { family: 'Outfit' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Outfit', weight: '500' } }
+                }
+            }
+        }
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchReservas() {
+    const fechaFilter = document.getElementById('filtroFechaReservas');
+    let dateVal = fechaFilter.value;
+
+    // Si no hay fecha, usar HOY del dispositivo del administrador
+    if (!dateVal) {
+        dateVal = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD usando zona local
+        fechaFilter.value = dateVal;
+    }
+
+    const url = `/api/admin/reservas?fecha=${dateVal}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('reservasList');
+
+            const header = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-family:var(--font-serif); font-size:20px; color:var(--black);">
+                            Servicio del <span style="color:var(--gold-dark);">${dateVal}</span>
+                        </div>
+                        <div style="font-size:12px; color:var(--gray-400); margin-top:4px;">${data.length} reserva(s)</div>
+                    </div>
+                    <button class="btn-gold" onclick="openModal('modalReserva')" id="btn-nueva-reserva-2">
+                        <i class="fa-solid fa-plus"></i> Nueva Reserva
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = header;
+
+            if (data.length === 0) {
+                container.innerHTML += `
+                    <div class="table-empty" style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius-md); padding:50px;">
+                        <i class="fa-regular fa-calendar-xmark" style="font-size:40px; opacity:0.3; display:block; margin-bottom:12px;"></i>
+                        No hay reservas para esta fecha.
+                    </div>`;
+                return;
+            }
+
+            data.forEach(r => {
+                const vipBadge  = r.is_vip ? `<span class="vip-badge">VIP Elite</span>` : '';
+                const noteHtml  = r.notas  ? `<div class="res-note">"${r.notas}"</div>` : '';
+                const mesaNum   = r.mesa_numero ? r.mesa_numero.toString().padStart(2, '0') : '--';
+
+                let stBadge;
+                if (r.estado === 'Confirmada')  stBadge = `<span class="badge badge-optimo">✓ Confirmada</span>`;
+                else if (r.estado === 'Pendiente') stBadge = `<span class="badge badge-pendiente">Pendiente</span>`;
+                else if (r.estado === 'Cancelada') stBadge = `<span class="badge badge-critico">Cancelada</span>`;
+                else stBadge = `<span class="badge badge-neutral">${r.estado}</span>`;
+
+                // Extraer nombre del cliente desde las notas
+                let clienteDisplay = r.cliente_nombre;
+                const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
+                if (matchNota) clienteDisplay = matchNota[1].trim();
+
+                container.innerHTML += `
+                    <div class="reservation-card">
+                        <div class="res-time">
+                            ${r.hora}
+                            <small>Mesa ${mesaNum}</small>
+                        </div>
+                        <div class="res-details" style="flex:1;">
+                            <div class="res-name">${clienteDisplay} ${vipBadge}</div>
+                            <div class="res-meta">
+                                <span><i class="fa-solid fa-user-group"></i> ${r.num_personas} Comensales</span>
+                                ${stBadge}
+                            </div>
+                            ${noteHtml}
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-left:12px;">
+                            <button class="btn-outline" style="padding:5px 10px; font-size:11px;" onclick="abrirEditarReserva(${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Editar reserva">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn-danger" style="padding:5px 10px; font-size:11px;" onclick="abrirEliminarReserva(${r.id}, '${clienteDisplay.replace(/'/g,"\\'")}'  , '${r.estado}')" title="Eliminar reserva">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudieron cargar las reservas.', 'error'));
+}
+
+/** Envía el formulario de nueva reserva */
+function submitReserva(e) {
+    e.preventDefault();
+
+    // Validación frontend
+    let valid = true;
+    const campos = ['reservaNombre', 'reservaFecha', 'reservaHora', 'reservaPersonas', 'reservaMesa'];
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`err-${id}`);
+        if (!el.value || el.value === '') {
+            el.classList.add('error');
+            if (err) err.classList.add('visible');
+            valid = false;
+        } else {
+            el.classList.remove('error');
+            if (err) err.classList.remove('visible');
+        }
+    });
+
+    if (!valid) {
+        showToast('Formulario incompleto', 'Completa todos los campos obligatorios.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitReserva');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:   document.getElementById('reservaNombre').value.trim(),
+        fecha:    document.getElementById('reservaFecha').value,
+        hora:     document.getElementById('reservaHora').value,
+        personas: parseInt(document.getElementById('reservaPersonas').value),
+        mesa_id:  parseInt(document.getElementById('reservaMesa').value),
+        notas:    document.getElementById('reservaNotas').value.trim(),
+    };
+
+    fetch('/api/admin/reservas', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Reserva confirmada', `Mesa asignada para ${payload.nombre} el ${payload.fecha} a las ${payload.hora}.`, 'success');
+            closeModal('modalReserva');
+            document.getElementById('formReserva').reset();
+
+            // Actualizar lista si la fecha coincide
+            const currentFilter = document.getElementById('filtroFechaReservas').value;
+            if (!currentFilter || currentFilter === payload.fecha) {
+                document.getElementById('filtroFechaReservas').value = payload.fecha;
+                fetchReservas();
+            }
+        } else {
+            showToast('Error al guardar', data.error || 'Verifique los datos e intente de nuevo.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Reserva';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. MESAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchMesas() {
+    // También cargar personal para drag and drop en esta vista
+    fetch('/api/admin/staff')
+        .then(r => r.json())
+        .then(staffList => {
+            renderDraggableStaff(staffList);
+        }).catch(() => {});
+
+    fetch('/api/admin/mesas')
+        .then(res => res.json())
+        .then(data => {
+            const grid = document.getElementById('mesasGrid');
+            grid.innerHTML = '';
+
+            const positions = [
+                {x:8,y:20},{x:30,y:20},{x:55,y:20},{x:78,y:20},
+                {x:20,y:55},{x:50,y:55},{x:10,y:78},{x:75,y:78}
+            ];
+
+            data.forEach((m, idx) => {
+                const pos = positions[idx] || { x: 50, y: 50 };
+                const estadoClass = m.estado.toLowerCase();
+
+                const div = document.createElement('div');
+                div.className = `mesa-item ${estadoClass}`;
+                // Ajustamos altura para acomodar la información adicional
+                div.style.cssText = `position:absolute; left:${pos.x}%; top:${pos.y}%; width:90px; height:90px; padding:6px; display:flex; flex-direction:column; justify-content:space-between; align-items:center;`;
+                div.setAttribute('data-id', m.id);
+                div.onclick = () => showMesaDetail(m.numero_mesa, m.estado, m.capacidad, m.zona, m.empleado_nombre);
+
+                // Calcular temporizador si está ocupada
+                let timerStr = '';
+                if (m.timer_inicio && m.estado === 'Ocupada') {
+                    const start = new Date(m.timer_inicio);
+                    const diffMs = new Date() - start;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    timerStr = `<span style="font-size:9px; font-family:var(--font-mono); opacity:0.8;"><i class="fa-regular fa-clock"></i> ${diffMins}m</span>`;
+                }
+
+                // Indicador de pedido en preparación parpadeante
+                const prepStr = m.pedido_en_preparacion 
+                    ? `<span style="color:var(--gold-light); font-size:9px; font-weight:700;" class="pulse" title="Preparando Pedido"><i class="fa-solid fa-fire-burner"></i></span>`
+                    : '';
+
+                // Iniciales o primer nombre del mesero asignado
+                const waiterStr = m.empleado_nombre 
+                    ? `<span style="font-size:8px; background:rgba(255,255,255,0.25); padding:1px 3px; border-radius:3px; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Mesero: ${m.empleado_nombre}">${m.empleado_nombre.split(' ')[0]}</span>`
+                    : '';
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; width:100%; font-size:8px; opacity:0.8;">
+                        <span>${m.zona}</span>
+                        ${prepStr}
+                    </div>
+                    <strong style="font-family:var(--font-serif); font-size:16px;">${m.numero_mesa.toString().padStart(2,'0')}</strong>
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; gap:2px;">
+                        <span style="font-size:8px; opacity:0.7;">${m.capacidad} pax</span>
+                        ${timerStr}
+                        ${waiterStr}
+                    </div>
+                `;
+
+                // Drag & Drop (Mesas)
+                setupMesaDrag(div, m);
+
+                // Allow dropping staff members
+                div.ondragover = (event) => {
+                    event.preventDefault();
+                    div.style.boxShadow = '0 0 0 3px var(--gold)';
+                };
+                div.ondragleave = () => {
+                    div.style.boxShadow = '';
+                };
+                div.ondrop = (event) => {
+                    event.preventDefault();
+                    div.style.boxShadow = '';
+                    const staffId = event.dataTransfer.getData('text/plain');
+                    if (staffId) {
+                        assignStaffToMesa(m.id, staffId);
+                    }
+                };
+
+                grid.appendChild(div);
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el plano de mesas.', 'error'));
+}
+
+function renderDraggableStaff(staffList) {
+    const container = document.getElementById('staffDraggableList');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    // Filtrar meseros y personal activo
+    const activos = staffList.filter(e => e.activo);
+    
+    if (activos.length === 0) {
+        container.innerHTML = '<div style="font-size:11px; color:var(--gray-400); text-align:center;">No hay personal activo.</div>';
+        return;
+    }
+
+    activos.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'badge badge-neutral';
+        div.style.cssText = 'padding:8px 12px; cursor:grab; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; background:var(--gray-50); width:100%; text-align:left;';
+        div.draggable = true;
+        div.setAttribute('data-id', e.id);
+        div.innerHTML = `
+            <span><i class="fa-solid fa-user-tie" style="color:var(--gold-dark); margin-right:6px;"></i> <strong>${e.nombre}</strong> <span style="font-size:10px; color:var(--gray-400);">(${e.cargo})</span></span>
+        `;
+        div.ondragstart = (event) => {
+            event.dataTransfer.setData('text/plain', e.id);
+        };
+        container.appendChild(div);
+    });
+}
+
+function assignStaffToMesa(mesaId, staffId) {
+    fetch(`/api/admin/mesas/${mesaId}/empleado`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ empleado_id: parseInt(staffId) })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Asignación exitosa', data.message, 'success');
+            fetchMesas();
+        } else {
+            showToast('Error', data.error || 'No se pudo asignar el personal.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error al procesar la asignación.', 'error'));
+}
+
+function setupMesaDrag(mesaDiv, m) {
+    mesaDiv.onmousedown = function(event) {
+        if (event.target.tagName === 'BUTTON') return;
+        mesaDiv.setAttribute('data-dragging', 'false');
+        let isDragging = false;
+        let shiftX = event.clientX - mesaDiv.getBoundingClientRect().left;
+        let shiftY = event.clientY - mesaDiv.getBoundingClientRect().top;
+
+        function moveAt(pageX, pageY) {
+            const container = document.getElementById('mapaMesas');
+            const rect = container.getBoundingClientRect();
+            let newLeft = pageX - shiftX - rect.left;
+            let newTop  = pageY - shiftY - rect.top;
+            if (newLeft < 0) newLeft = 0;
+            if (newTop  < 0) newTop  = 0;
+            if (newLeft + mesaDiv.offsetWidth  > container.offsetWidth)  newLeft = container.offsetWidth  - mesaDiv.offsetWidth;
+            if (newTop  + mesaDiv.offsetHeight > container.offsetHeight) newTop  = container.offsetHeight - mesaDiv.offsetHeight;
+            const leftPct = (newLeft / container.offsetWidth)  * 100;
+            const topPct  = (newTop  / container.offsetHeight) * 100;
+            mesaDiv.style.left = leftPct + '%';
+            mesaDiv.style.top  = topPct  + '%';
+            mesaDiv.setAttribute('data-x', leftPct);
+            mesaDiv.setAttribute('data-y', topPct);
+        }
+
+        function onMouseMove(event) {
+            isDragging = true;
+            mesaDiv.setAttribute('data-dragging', 'true');
+            moveAt(event.pageX, event.pageY);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.onmouseup = function() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.onmouseup = null;
+            if (isDragging) {
+                const x = mesaDiv.getAttribute('data-x');
+                const y = mesaDiv.getAttribute('data-y');
+                if (x && y) {
+                    fetch(`/api/admin/mesas/${m.id}/coordenadas`, {
+                        method: 'PUT',
+                        headers: jsonHeaders(),
+                        body: JSON.stringify({ x: parseFloat(x), y: parseFloat(y) }),
+                    });
+                }
+                setTimeout(() => mesaDiv.setAttribute('data-dragging', 'false'), 50);
+            }
+        };
+    };
+    mesaDiv.ondragstart = () => false;
+}
+
+function showMesaDetail(num, estado, cap, zona = 'Principal', empleadoNombre = null) {
+    document.getElementById('md-num').textContent = num.toString().padStart(2, '0');
+    document.getElementById('md-estado').textContent = estado.toUpperCase();
+    document.getElementById('md-cap').textContent = `${cap} Pax`;
+    document.getElementById('md-zona').textContent = zona;
+    document.getElementById('md-personal').textContent = empleadoNombre || 'Ninguno';
+
+    const btnFactura = document.getElementById('btnMesaFactura');
+    if (estado === 'Ocupada') {
+        btnFactura.style.display = 'block';
+        btnFactura.onclick = function () {
+            fetch(`/api/admin/mesas/${num}/pedido-activo`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.pedido_id) viewTicket(data.pedido_id);
+                    else showToast('Sin pedido activo', 'Esta mesa no tiene pedido activo.', 'info');
+                });
+        };
+    } else {
+        btnFactura.style.display = 'none';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. STAFF
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchStaff() {
+    fetch('/api/admin/staff')
+        .then(res => res.json())
+        .then(data => {
+            const grid = document.getElementById('staffGrid');
+            grid.innerHTML = '';
+            if (!data || data.length === 0) {
+                grid.innerHTML = '<div class="table-empty">No hay personal registrado.</div>';
+                return;
+            }
+            data.forEach(e => {
+                let img = 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=80&w=150';
+                if (e.cargo && e.cargo.includes('Sommelier')) img = 'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&q=80&w=150';
+                if (e.cargo && e.cargo.includes('Mesero'))    img = 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=150';
+
+                grid.innerHTML += `
+                    <div class="staff-card">
+                        <div class="staff-avatar"><img src="${img}" alt="${e.cargo || 'Staff'}"></div>
+                        <div class="staff-name">${e.nombre || 'Sin nombre'}</div>
+                        <div class="staff-role">${e.cargo || 'Sin cargo'}</div>
+                        <div style="margin-top:8px;">
+                            <span class="badge ${e.activo ? 'badge-optimo' : 'badge-critico'}">${e.activo ? 'Activo' : 'Inactivo'}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el personal.', 'error'));
+}
+
+function submitStaff(e) {
+    e.preventDefault();
+    const payload = {
+        nombres: document.getElementById('staffNombre').value.trim(),
+        cargo:   document.getElementById('staffCargo').value,
+        rol:     document.getElementById('staffRol').value,
+    };
+
+    fetch('/api/admin/staff', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const creds = data.credenciales
+                ? `\n📧 Email: ${data.credenciales.email}\n🔑 Contraseña: ${data.credenciales.password}`
+                : '';
+            showToast('Staff registrado', `${payload.nombres} añadido como ${payload.cargo}.${creds}`, 'success');
+            closeModal('modalStaff');
+            document.getElementById('formStaff').reset();
+            fetchStaff();
+        } else {
+            showToast('Error', data.error || 'No se pudo registrar el empleado.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. INVENTARIO — Estado y funciones avanzadas
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _inventoryAll      = [];   // Dataset completo del servidor
+let _inventoryFiltered = [];   // Dataset después de filtros
+let _invPage      = 1;
+let _invPageSize  = 10;
+let _invSortCol   = null;
+let _invSortDir   = 'asc';
+
+/** Carga todos los insumos desde la API */
+function fetchInsumos() {
+    fetch('/api/admin/insumos')
+        .then(res => res.json())
+        .then(data => {
+            // Actualizar KPIs
+            document.getElementById('inv-valor-total').textContent = formatCOP(data.kpis.valor_total);
+            document.getElementById('inv-alertas').textContent     = data.kpis.alertas + ' Críticos';
+            document.getElementById('inv-rotacion').textContent    = data.kpis.rotacion;
+            document.getElementById('inv-items').textContent       = data.kpis.items_activos + ' SKU';
+
+            _inventoryAll = data.insumos || [];
+            filterAndRenderInventory();
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el inventario.', 'error'));
+}
+
+/** Filtra la data según búsqueda, categoría y estado, luego renderiza */
+function filterAndRenderInventory() {
+    const search   = (document.getElementById('invSearch')?.value         || '').toLowerCase();
+    const category = (document.getElementById('invCategoryFilter')?.value || '');
+    const status   = (document.getElementById('invStatusFilter')?.value   || '');
+
+    _inventoryFiltered = _inventoryAll.filter(i => {
+        const matchSearch   = !search   || i.nombre.toLowerCase().includes(search) || i.categoria.toLowerCase().includes(search);
+        const matchCategory = !category || i.categoria === category;
+        const matchStatus   = !status   || i.estado === status;
+        return matchSearch && matchCategory && matchStatus;
+    });
+
+    // Aplicar ordenamiento actual
+    if (_invSortCol) applySortToFiltered();
+
+    _invPage = 1; // Reset a página 1 al filtrar
+    renderInventoryPage();
+}
+
+/** Ordena la columna seleccionada */
+function sortInventory(col) {
+    if (_invSortCol === col) {
+        _invSortDir = _invSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _invSortCol = col;
+        _invSortDir = 'asc';
+    }
+
+    // Actualizar estilos de encabezados
+    document.querySelectorAll('table.haute-table th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+    });
+    const thMap = { nombre: 'th-nombre', categoria: 'th-categoria', stock: 'th-stock', precio: 'th-precio', estado: 'th-estado' };
+    const thEl = document.getElementById(thMap[col]);
+    if (thEl) thEl.classList.add(`sort-${_invSortDir}`);
+
+    applySortToFiltered();
+    _invPage = 1;
+    renderInventoryPage();
+}
+
+function applySortToFiltered() {
+    _inventoryFiltered.sort((a, b) => {
+        let va = a[_invSortCol];
+        let vb = b[_invSortCol];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return _invSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return _invSortDir === 'asc' ?  1 : -1;
+        return 0;
+    });
+}
+
+/** Cambia el tamaño de página */
+function changePageSize() {
+    _invPageSize = parseInt(document.getElementById('invPageSize').value);
+    _invPage = 1;
+    renderInventoryPage();
+}
+
+/** Renderiza la página actual de la tabla */
+function renderInventoryPage() {
+    const tbody    = document.getElementById('inventoryTableBody');
+    const total    = _inventoryFiltered.length;
+    const start    = (_invPage - 1) * _invPageSize;
+    const pageData = _inventoryFiltered.slice(start, start + _invPageSize);
+
+    tbody.innerHTML = '';
+
+    if (total === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="6" class="table-empty">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                No se encontraron insumos con esos filtros.
+            </td></tr>`;
+        renderPagination(0, 0);
+        return;
+    }
+
+    pageData.forEach(i => {
+        const badgeClass  = i.estado === 'CRÍTICO' ? 'badge-critico' : 'badge-optimo';
+        const stockColor  = i.estado === 'CRÍTICO' ? 'var(--danger)' : 'var(--black)';
+        const stockStr    = `<strong style="color:${stockColor};">${i.stock}</strong> <span style="color:var(--gray-400); font-size:11px;">${i.unidad}</span>`;
+        const precioStr   = formatCOP(i.precio);
+        const calcExtra   = i.categoria === 'Carnes'
+            ? `<br><span style="font-size:10px; color:var(--gold-dark); cursor:pointer;" onclick="mostrarCalculadoraMP('${i.id}', '${i.precio}')"><i class="fa-solid fa-calculator"></i> Calc. Porción</span>`
+            : '';
+
+        let img = 'https://images.unsplash.com/photo-1599599811442-1262d5f0e9f6?auto=format&fit=crop&q=80&w=80';
+        if (i.categoria === 'Carnes') img = 'https://images.unsplash.com/photo-1603048297172-c92544798d5e?auto=format&fit=crop&q=80&w=80';
+        if (i.nombre.toLowerCase().includes('trufa')) img = 'https://images.unsplash.com/photo-1626200419188-f56743b17c9d?auto=format&fit=crop&q=80&w=80';
+        if (i.categoria === 'Bodega Exclusiva' || i.nombre.toLowerCase().includes('vino') || i.nombre.toLowerCase().includes('champagne')) img = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=80';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div class="inv-item-info">
+                    <img src="${img}" class="inv-img" alt="${i.nombre}">
+                    <div>
+                        <strong style="display:block; font-size:13px;">${i.nombre}</strong>
+                        <span style="font-size:11px; color:var(--gray-400);">Mínimo: ${i.stock_minimo} ${i.unidad}</span>
+                    </div>
+                </div>
+            </td>
+            <td><span class="badge badge-neutral" style="font-weight:600;">${i.categoria.toUpperCase()}</span></td>
+            <td>${stockStr}</td>
+            <td>${precioStr}${calcExtra}</td>
+            <td>
+                <span class="badge ${badgeClass}">
+                    <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px;"></span>
+                    ${i.estado}
+                </span>
+            </td>
+            <td>
+                <button class="btn-danger" onclick="eliminarMateriaPrima(${i.id}, '${i.nombre.replace(/'/g, "\\'")}')" title="Eliminar insumo">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    renderPagination(total, start + pageData.length);
+}
+
+/** Renderiza los controles de paginación */
+function renderPagination(total, showing) {
+    const totalPages = Math.ceil(total / _invPageSize);
+    const info       = document.getElementById('invPaginationInfo');
+    const controls   = document.getElementById('invPaginationControls');
+
+    info.textContent = total > 0
+        ? `Mostrando ${(_invPage - 1) * _invPageSize + 1}–${Math.min(_invPage * _invPageSize, total)} de ${total} ítems`
+        : '0 resultados';
+
+    controls.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    // Botón anterior
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    prev.disabled  = _invPage === 1;
+    prev.onclick   = () => { _invPage--; renderInventoryPage(); };
+    controls.appendChild(prev);
+
+    // Números de página
+    for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 7 && Math.abs(p - _invPage) > 2 && p !== 1 && p !== totalPages) {
+            if (p === 2 || p === totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.cssText = 'padding:0 4px; color:var(--gray-400);';
+                controls.appendChild(dots);
+            }
+            continue;
+        }
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (p === _invPage ? ' active' : '');
+        btn.textContent = p;
+        btn.onclick = ((page) => () => { _invPage = page; renderInventoryPage(); })(p);
+        controls.appendChild(btn);
+    }
+
+    // Botón siguiente
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    next.disabled  = _invPage === totalPages;
+    next.onclick   = () => { _invPage++; renderInventoryPage(); };
+    controls.appendChild(next);
+}
+
+// ── Calculadora de porción ──
+
+function checkCategoriaMP() {
+    const cat  = document.getElementById('mpCategoria').value;
+    const calc = document.getElementById('mpCalculadoraPorcion');
+    calc.style.display = (cat === 'Carnes') ? 'block' : 'none';
+}
+
+function calcularPorcion() {
+    const costo  = parseFloat(document.getElementById('mpCosto').value) || 0;
+    const gramos = parseFloat(document.getElementById('mpPesoPorcion')?.value) || 0;
+    const res    = document.getElementById('mpCostoPorcionRes');
+    if (!res) return;
+    if (gramos > 0 && costo > 0) {
+        const costoGramos = (costo / 1000) * gramos;
+        res.innerHTML = `Costo por porción (${gramos}g): <strong style="color:var(--gold-dark);">${formatCOP(costoGramos)}</strong>`;
+    } else {
+        res.innerHTML = 'Ingresa costo y peso por porción.';
+    }
+}
+
+function mostrarCalculadoraMP(id, precio) {
+    document.getElementById('mpCosto').value    = precio;
+    document.getElementById('mpCategoria').value = 'Carnes';
+    checkCategoriaMP();
+    openModal('modalMateriaPrima');
+}
+
+// ── CRUD de MateriaPrima ──
+
+function submitMateriaPrima(e) {
+    e.preventDefault();
+
+    // Validación frontend
+    const campos = ['mpNombre', 'mpCategoria', 'mpUnidad', 'mpCantidad', 'mpStockMinimo', 'mpCosto'];
+    let valid = true;
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`err-${id}`);
+        if (!el.value || el.value === '') {
+            el.classList.add('error');
+            if (err) err.classList.add('visible');
+            valid = false;
+        } else {
+            el.classList.remove('error');
+            if (err) err.classList.remove('visible');
+        }
+    });
+
+    if (!valid) {
+        showToast('Formulario incompleto', 'Completa todos los campos obligatorios.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitMateriaPrima');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:          document.getElementById('mpNombre').value.trim(),
+        categoria:       document.getElementById('mpCategoria').value,
+        cantidad_actual: parseFloat(document.getElementById('mpCantidad').value),
+        unidad_medida:   document.getElementById('mpUnidad').value,
+        stock_minimo:    parseFloat(document.getElementById('mpStockMinimo').value),
+        costo_unitario:  parseFloat(document.getElementById('mpCosto').value),
+    };
+
+    fetch('/api/admin/insumos', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Insumo guardado', `"${payload.nombre}" fue añadido al inventario.`, 'success');
+            closeModal('modalMateriaPrima');
+            document.getElementById('formMateriaPrima').reset();
+            document.getElementById('mpCalculadoraPorcion').style.display = 'none';
+            fetchInsumos();
+        } else {
+            const errMsg = data.errors
+                ? Object.values(data.errors).flat().join(' ')
+                : (data.error || 'Verifique los datos.');
+            showToast('Error al guardar', errMsg, 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Insumo';
+    });
+}
+
+function eliminarMateriaPrima(id, nombre) {
+    if (!confirm(`¿Eliminar el insumo "${nombre}"? Esta acción no se puede deshacer.`)) return;
+
+    fetch(`/api/admin/insumos/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': csrfToken() },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Insumo eliminado', `"${nombre}" fue removido del inventario.`, 'success');
+            fetchInsumos();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión al eliminar.', 'error'));
+}
+
+// ── Exportación ──
+
+function exportCSV() {
+    if (_inventoryFiltered.length === 0) {
+        showToast('Sin datos', 'No hay insumos que exportar con los filtros actuales.', 'warning');
+        return;
+    }
+    const headers = ['ID', 'Nombre', 'Categoría', 'Stock Actual', 'Unidad', 'Costo Unitario', 'Stock Mínimo', 'Estado'];
+    const rows    = _inventoryFiltered.map(i => [i.id, i.nombre, i.categoria, i.stock, i.unidad, i.precio, i.stock_minimo, i.estado]);
+    const csv     = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    downloadFile(csv, `inventario_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    showToast('Exportado', 'El inventario fue exportado como CSV.', 'success');
+}
+
+function exportJSON() {
+    if (_inventoryFiltered.length === 0) {
+        showToast('Sin datos', 'No hay insumos que exportar con los filtros actuales.', 'warning');
+        return;
+    }
+    const json = JSON.stringify(_inventoryFiltered, null, 2);
+    downloadFile(json, `inventario_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+    showToast('Exportado', 'El inventario fue exportado como JSON.', 'success');
+}
+
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ── Reposición ──
+
+function submitReposicion(e) {
+    e.preventDefault();
+    const pin = document.getElementById('repPin').value;
+
+    fetch('/api/admin/insumos/pedido', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ pin }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Pedido enviado', data.message || 'Pedido de reposición generado correctamente.', 'success');
+            closeModal('modalReposicion');
+            document.getElementById('formReposicion').reset();
+        } else {
+            showToast('Error', data.error || 'PIN inválido o error en el servidor.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. HISTORIAL DE PEDIDOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchHistorial() {
+    const search = document.getElementById('pedidosSearch')?.value || '';
+    let url = '/api/pedidos';
+    if (search) url += `?search=${encodeURIComponent(search)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            const tbody  = document.getElementById('historialTableBody');
+            tbody.innerHTML = '';
+            const pedidos = data.data || [];
+
+            if (pedidos.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="table-empty"><i class="fa-solid fa-receipt"></i> No se encontraron pedidos.</td></tr>`;
+                return;
+            }
+
+            pedidos.forEach(p => {
+                const d           = new Date(p.created_at);
+                const formatMesa  = p.mesa   ? `Mesa ${p.mesa.numero_mesa}` : 'Bar / Llevar';
+                const formatClient = p.cliente && p.cliente.usuario
+                    ? `${p.cliente.usuario.nombres} ${p.cliente.usuario.apellidos}`
+                    : 'Cliente Estándar';
+                const formatTotal = formatCOP(p.total);
+
+                let badgeClass = 'badge-optimo';
+                if (p.estado === 'Cancelado')                         badgeClass = 'badge-critico';
+                else if (['Nuevo', 'En_Preparacion'].includes(p.estado)) badgeClass = 'badge-pendiente';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>#${p.id.toString().padStart(4, '0')}</strong></td>
+                        <td style="font-size:12px; color:var(--gray-600);">
+                            ${d.toLocaleDateString()}<br>
+                            ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </td>
+                        <td>
+                            <strong style="display:block;">${formatClient}</strong>
+                            <span style="font-size:11px; color:var(--gray-400);">${formatMesa}</span>
+                        </td>
+                        <td><strong>${formatTotal}</strong></td>
+                        <td><span class="badge ${badgeClass}">${p.estado}</span></td>
+                        <td>
+                            <button class="btn-outline" style="padding:6px 12px; font-size:12px;" onclick="viewTicket(${p.id})">
+                                <i class="fa-regular fa-file-lines"></i> Ticket
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el historial.', 'error'));
+}
+
+function viewTicket(id) {
+    fetch(`/api/pedidos/${id}`)
+        .then(res => res.json())
+        .then(p => {
+            document.getElementById('ticketNum').textContent = `#${p.id.toString().padStart(4,'0')}`;
+            const d = new Date(p.created_at);
+            document.getElementById('ticketDate').textContent    = `${d.toLocaleDateString()} — ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+            document.getElementById('ticketClient').textContent  = p.cliente && p.cliente.usuario
+                ? `${p.cliente.usuario.nombres} ${p.cliente.usuario.apellidos}` : 'Cliente Genérico';
+            document.getElementById('ticketMesa').textContent    = p.mesa ? `Mesa ${p.mesa.numero_mesa}` : 'Bar / Llevar';
+
+            const itemsContainer = document.getElementById('ticketItems');
+            itemsContainer.innerHTML = '';
+
+            if (p.detalles && p.detalles.length > 0) {
+                p.detalles.forEach(item => {
+                    const sub = formatCOP(item.subtotal);
+                    itemsContainer.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <div style="flex:1;">${item.cantidad}x ${item.producto ? item.producto.nombre : 'Item'}</div>
+                            <div style="text-align:right;">${sub}</div>
+                        </div>
+                        ${item.notas_especiales ? `<div style="font-size:11px; font-style:italic; padding-left:14px; color:var(--gray-400); margin-bottom:5px;">— ${item.notas_especiales}</div>` : ''}
+                    `;
+                });
+            } else {
+                itemsContainer.innerHTML = '<div style="color:var(--gray-400); font-style:italic;">Sin detalle de ítems.</div>';
+            }
+
+            document.getElementById('ticketTotal').textContent = formatCOP(p.total);
+            openModal('modalTicket');
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el ticket.', 'error'));
+}
+
+// ── Comanda ──
+function submitComanda(e) {
+    e.preventDefault();
+    fetch('/api/admin/mesas/comanda', {
+        method: 'POST',
+        headers: jsonHeaders(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Acción ejecutada', 'La comanda fue procesada correctamente.', 'success');
+            closeModal('modalComanda');
+        } else {
+            showToast('Error', 'No se pudo ejecutar la acción.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EDICIÓN DE RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Abre el modal de edición precargado con los datos de una reserva */
+function abrirEditarReserva(r) {
+    document.getElementById('editReservaId').value = r.id;
+    // Extraer nombre desde las notas si está guardado ahí
+    let nombre = r.cliente_nombre || '';
+    const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
+    if (matchNota) nombre = matchNota[1].trim();
+
+    document.getElementById('editReservaNombre').value  = nombre;
+    document.getElementById('editReservaFecha').value   = (r.fecha_hora || r.fecha || '').substring(0, 10);
+    document.getElementById('editReservaHora').value    = r.hora || (r.fecha_hora || '').substring(11, 16);
+    document.getElementById('editReservaPersonas').value= r.num_personas || '';
+    document.getElementById('editReservaEstado').value  = r.estado || 'Confirmada';
+
+    // Extraer notas sin la parte de "Cliente: xxx —"
+    let notasLimpias = (r.notas || '').replace(/Cliente:\s*[^—\n]+(—\s*)?/i, '').trim();
+    document.getElementById('editReservaNotas').value = notasLimpias;
+
+    // Cargar opciones de mesas en el select
+    const selMesa = document.getElementById('editReservaMesa');
+    selMesa.innerHTML = '<option value="">— Cargando mesas... —</option>';
+    fetch('/api/admin/mesas')
+        .then(res => res.json())
+        .then(mesas => {
+            selMesa.innerHTML = '<option value="">— Seleccionar —</option>';
+            mesas.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `Mesa ${m.numero_mesa} (${m.capacidad} pax) — ${m.estado}`;
+                if (m.id === r.mesa_id) opt.selected = true;
+                selMesa.appendChild(opt);
+            });
+        }).catch(() => {
+            selMesa.innerHTML = '<option value="">— Error al cargar —</option>';
+        });
+
+    openModal('modalEditarReserva');
+}
+
+/** Envía la edición al servidor */
+function submitEditarReserva(e) {
+    e.preventDefault();
+    const id = document.getElementById('editReservaId').value;
+    if (!id) return;
+
+    const btn = document.getElementById('btnSubmitEditarReserva');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:   document.getElementById('editReservaNombre').value.trim(),
+        fecha:    document.getElementById('editReservaFecha').value,
+        hora:     document.getElementById('editReservaHora').value,
+        personas: parseInt(document.getElementById('editReservaPersonas').value),
+        mesa_id:  parseInt(document.getElementById('editReservaMesa').value),
+        estado:   document.getElementById('editReservaEstado').value,
+        notas:    document.getElementById('editReservaNotas').value.trim(),
+    };
+
+    fetch(`/api/admin/reservas/${id}`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Reserva actualizada', 'El cliente fue notificado del cambio.', 'success');
+            closeModal('modalEditarReserva');
+            fetchReservas();
+        } else {
+            showToast('Error', data.error || 'No se pudo actualizar la reserva.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cambios';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ELIMINACIÓN DE RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function abrirEliminarReserva(id, nombre, estado) {
+    // Bloquear eliminación de completadas en frontend también
+    if (estado === 'Completada') {
+        showToast('Acción no permitida', 'No se pueden eliminar reservas ya completadas.', 'warning');
+        return;
+    }
+    document.getElementById('eliminarReservaId').value = id;
+    document.getElementById('eliminarReservaNombre').textContent = nombre;
+    openModal('modalEliminarReserva');
+}
+
+function confirmarEliminarReserva() {
+    const id = document.getElementById('eliminarReservaId').value;
+    if (!id) return;
+
+    const btn = document.getElementById('btnConfirmarEliminar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Eliminando...';
+
+    fetch(`/api/admin/reservas/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': csrfToken() },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Reserva eliminada', 'El cliente fue notificado de la cancelación.', 'success');
+            closeModal('modalEliminarReserva');
+            fetchReservas();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar la reserva.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión al eliminar.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-trash"></i> Sí, Cancelar Reserva';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORTADORES CORPORATIVOS — Excel y PDF
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _getMetaExport() {
+    if (!_metaSemana || !_ventasPorDia.length) {
+        showToast('Sin datos', 'Espera a que cargue el reporte de la semana.', 'warning');
+        return null;
+    }
+    return {
+        meta: _metaSemana,
+        filas: _ventasPorDia.filter(d => !d.es_futuro),
+    };
+}
+
+function exportarExcel() {
+    const d = _getMetaExport();
+    if (!d) return;
+
+    const { meta, filas } = d;
+    const ahora = new Date();
+    const fechaGen = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+
+    // Construir workbook
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: Encabezado corporativo + tabla
+    const encabezado = [
+        ['SABOR A PUEBLO', '', '', '', ''],
+        ['Reporte de Ventas Semanales', '', '', '', ''],
+        [`Semana: ${meta.inicio} al ${meta.fin}`, '', '', '', ''],
+        [`Generado: ${fechaGen}`, '', '', '', ''],
+        [''],
+        ['Día', 'Fecha', 'Ventas (COP)', 'Pedidos', 'Ticket Prom.'],
+    ];
+
+    const totalRow = (val) => val.toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+
+    const datos = filas.map(r => [
+        r.dia,
+        r.fecha,
+        r.ventas,
+        r.pedidos,
+        r.pedidos > 0 ? Math.round(r.ventas / r.pedidos) : 0,
+    ]);
+
+    const totales = [
+        [''],
+        ['TOTALES', '', meta.total_semanal, meta.total_pedidos, meta.ticket_semanal],
+    ];
+
+    const wsData = [...encabezado, ...datos, ...totales];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Anchos de columna
+    ws['!cols'] = [{ wch:12 }, { wch:14 }, { wch:20 }, { wch:12 }, { wch:18 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Ventas Semanales');
+
+    const filename = `reporte_ventas_semanal_${meta.inicio}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showToast('✓ Excel exportado', `Archivo: ${filename}`, 'success');
+}
+
+function exportarPDF() {
+    const d = _getMetaExport();
+    if (!d) return;
+
+    const { meta, filas } = d;
+    const ahora = new Date();
+    const fechaGen = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    // ─ Encabezado corporativo ─
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(210, 165, 85);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('SABOR A PUEBLO', 14, 12);
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    doc.text('Restaurante & Cocina Tradicional', 14, 19);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generado: ${fechaGen}`, 150, 19);
+
+    // ─ Sub-encabezado ─
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Reporte de Ventas Semanales', 14, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Período: ${meta.inicio}  al  ${meta.fin}`, 14, 47);
+
+    // ─ KPIs resumen ─
+    const fmtCOP = (n) => n.toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+    doc.setDrawColor(210, 165, 85);
+    doc.setLineWidth(0.3);
+    doc.line(14, 52, 196, 52);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    doc.text(`Total semanal: ${fmtCOP(meta.total_semanal)}`, 14, 60);
+    doc.text(`Total pedidos: ${meta.total_pedidos}`, 80, 60);
+    doc.text(`Ticket prom.: ${fmtCOP(meta.ticket_semanal)}`, 140, 60);
+
+    // ─ Tabla de datos ─
+    const colHeaders = [['Día', 'Fecha', 'Ventas (COP)', 'Pedidos', 'Ticket Prom. (COP)']];
+    const filasPDF = filas.map(r => [
+        r.dia,
+        r.fecha,
+        fmtCOP(r.ventas),
+        r.pedidos,
+        r.pedidos > 0 ? fmtCOP(Math.round(r.ventas / r.pedidos)) : '—',
+    ]);
+
+    doc.autoTable({
+        head: colHeaders,
+        body: filasPDF,
+        startY: 68,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [10, 10, 10], textColor: [210, 165, 85], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [249, 247, 243] },
+        footStyles: { fillColor: [240, 235, 225], fontStyle: 'bold' },
+        foot: [['TOTAL', '', fmtCOP(meta.total_semanal), meta.total_pedidos, fmtCOP(meta.ticket_semanal)]],
+        showFoot: 'lastPage',
+        margin: { left: 14, right: 14 },
+    });
+
+    // ─ Pie de página ─
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Página ${i} de ${pageCount}  —  Sabor a Pueblo  —  Documento confidencial`, 14, 290);
+    }
+
+    const filename = `reporte_ventas_semanal_${meta.inicio}.pdf`;
+    doc.save(filename);
+    showToast('✓ PDF exportado', `Archivo: ${filename}`, 'success');
+}
+</script>
 
 </body>
 </html>

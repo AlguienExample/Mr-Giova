@@ -17,7 +17,15 @@ class Mesa extends Model
         'estado',
         'codigo_qr',
         'ubicacion',
+        'empleado_id',
+        'zona',
+        'timer_inicio',
     ];
+
+    public function empleado()
+    {
+        return $this->belongsTo(Empleado::class, 'empleado_id');
+    }
 
     public function pedidos()
     {

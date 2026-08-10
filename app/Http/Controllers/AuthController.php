@@ -77,6 +77,8 @@ class AuthController extends Controller
             return redirect()->intended('/admin');
         } elseif ($user->rol && $user->rol->name === 'Cocinero') {
             return redirect()->intended('/cocina');
+        } elseif ($user->rol && $user->rol->name === 'Cajero') {
+            return redirect()->intended('/caja');
         }
 
         // Si es otro rol (como Mesero o Cliente) que no tiene tablero específico asignado

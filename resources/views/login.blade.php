@@ -3,82 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso Personal - Mr.Giova</title>
+    <title>Haute Epicure - Admin Portal</title>
     
     <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/restaurant.css">
     
     <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --card-bg: #ffffff;
+            --text-main: #111111;
+            --text-muted: #757575;
+            --text-light: #9e9e9e;
+            --border-color: #e0e0e0;
+            --accent-color: #8c6a38; 
+            --black: #000000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, var(--color-sand) 0%, #F5D3C3 100%);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Nav */
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 50px;
+            width: 100%;
+        }
+
+        .brand-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 26px;
+            letter-spacing: 1.5px;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        .admin-portal {
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            font-weight: 500;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        /* Main Content */
+        .main-container {
+            flex-grow: 1;
+            display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
             padding: 20px;
         }
 
         .login-card {
+            background-color: var(--card-bg);
             width: 100%;
-            max-width: 420px;
-            background-color: white;
-            border-radius: var(--border-radius-md);
-            box-shadow: var(--box-shadow-lg);
-            border: 1px solid rgba(211, 84, 0, 0.15);
-            overflow: hidden;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .login-header {
+            max-width: 440px;
+            border-radius: 4px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.05);
+            padding: 50px 40px 30px 40px;
             text-align: center;
-            padding: 35px 25px 25px 25px;
-            position: relative;
+            border: 1px solid rgba(0,0,0,0.03);
         }
 
-        .login-logo {
+        /* Logo Area */
+        .logo-container {
+            margin-bottom: 25px;
+        }
+
+        .logo-img {
             width: 90px;
             height: 90px;
-            border-radius: 50%;
             object-fit: cover;
-            border: 3px solid var(--color-cempasuchil);
-            margin: 0 auto 15px auto;
-            box-shadow: var(--box-shadow-sm);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            margin: 0 auto;
+            display: block;
         }
 
-        .login-header h2 {
-            font-size: 28px;
-            color: var(--color-charcoal-dark);
-            margin-bottom: 5px;
+        .restaurant-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 34px;
+            font-weight: 400;
+            color: var(--text-main);
+            margin-bottom: 12px;
         }
 
-        .login-header h2 span {
-            color: var(--color-cempasuchil);
+        .staff-access {
+            font-size: 11px;
+            letter-spacing: 2px;
+            font-weight: 500;
+            color: var(--text-main);
+            text-transform: uppercase;
+            margin-bottom: 45px;
         }
 
-        .login-header p {
-            color: var(--color-muted);
-            font-size: 14px;
-        }
-
-        .login-body {
-            padding: 0 35px 35px 35px;
-        }
-
+        /* Form Area */
         .form-group {
-            margin-bottom: 20px;
-            position: relative;
+            margin-bottom: 28px;
+            text-align: left;
         }
 
         .form-label {
             display: block;
-            font-size: 13px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--color-charcoal);
-            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 500;
             letter-spacing: 0.5px;
+            color: var(--text-main);
+            margin-bottom: 12px;
+            text-transform: uppercase;
         }
 
         .input-wrapper {
@@ -89,155 +140,247 @@
 
         .input-wrapper i {
             position: absolute;
-            left: 15px;
-            color: var(--color-muted);
+            left: 0;
+            color: var(--text-light);
             font-size: 16px;
-            transition: color 0.2s;
         }
 
         .form-control {
             width: 100%;
-            padding: 12px 15px 12px 42px;
-            border-radius: var(--border-radius-sm);
-            border: 1px solid rgba(0, 0, 0, 0.12);
-            background-color: var(--color-sand-light);
+            padding: 10px 0 10px 32px;
+            border: none;
+            border-bottom: 2px solid var(--border-color);
+            background: transparent;
             font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            transition: border-color 0.3s;
             outline: none;
-            transition: all 0.2s;
-            color: var(--color-charcoal-dark);
+        }
+        
+        .form-control::placeholder {
+            color: #cecece;
+            font-weight: 400;
         }
 
         .form-control:focus {
-            border-color: var(--color-terracotta);
-            background-color: white;
-            box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.15);
-        }
-
-        .form-control:focus + i {
-            color: var(--color-terracotta);
+            border-bottom-color: var(--black);
         }
 
         .form-options {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            font-size: 13px;
+            margin-top: 15px;
+            margin-bottom: 35px;
         }
 
         .remember-me {
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 12px;
+            color: var(--text-main);
             cursor: pointer;
-            color: var(--color-charcoal);
-            font-weight: 500;
         }
 
         .remember-me input {
-            accent-color: var(--color-terracotta);
-            width: 15px;
-            height: 15px;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--black);
+            cursor: pointer;
+            border: 1px solid var(--border-color);
         }
 
+        .forgot-password {
+            font-size: 12px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .forgot-password:hover {
+            color: #6d532a;
+        }
+
+        /* Button */
         .btn-login {
             width: 100%;
-            padding: 14px;
-            font-size: 16px;
-            border-radius: var(--border-radius-sm);
+            padding: 18px;
+            background-color: var(--black);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
         }
 
+        .btn-login:hover {
+            background-color: #222;
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+        
+        /* Error/Success Messages */
         .alert {
-            background-color: #FDEDEC;
-            color: #C0392B;
-            border-left: 4px solid #E74C3C;
-            padding: 12px 15px;
+            background-color: #fce8e8;
+            color: #c0392b;
+            padding: 12px;
             border-radius: 4px;
             font-size: 13px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
+            margin-bottom: 25px;
+            text-align: left;
+            border-left: 3px solid #e74c3c;
         }
 
         .alert-success {
-            background-color: #E8F8F5;
-            color: var(--color-jalapeno-hover);
-            border-left: 4px solid var(--color-jalapeno);
+            background-color: #e8f8f5;
+            color: #16a085;
+            border-left: 3px solid #1abc9c;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 25px;
+            text-align: left;
         }
 
-        .login-footer {
-            text-align: center;
-            margin-top: 25px;
-            font-size: 12px;
-            color: var(--color-muted);
+        /* Card Footer */
+        .card-footer {
+            margin-top: 45px;
+            padding-top: 25px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        /* Page Footer */
+        .page-footer {
+            padding: 30px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 30px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-main);
+        }
+        
+        @media (max-width: 768px) {
+            .top-nav, .page-footer {
+                padding: 20px;
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .login-card {
+                padding: 40px 25px 25px 25px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Talavera Border Accent -->
-    <div class="mexican-border-top" style="position: absolute; top: 0; left: 0;"></div>
+    <nav class="top-nav">
+        <div class="brand-name">HAUTE EPICURE</div>
+        <div class="admin-portal">ADMIN PORTAL</div>
+    </nav>
 
-    <div class="login-card">
-        <div class="login-header">
-            <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200" alt="Logo Mr.Giova" class="login-logo">
-            <h2>Mr.<span>Giova</span></h2>
-            <p>Acceso para el Personal del Restaurante</p>
-        </div>
-
-        <div class="login-body">
+    <div class="main-container">
+        <div class="login-card">
+            
             @if($errors->any())
                 <div class="alert">
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    <div>{{ $errors->first() }}</div>
+                    {{ $errors->first() }}
                 </div>
             @endif
 
             @if(session('success'))
                 <div class="alert alert-success">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <div>{{ session('success') }}</div>
+                    {{ session('success') }}
                 </div>
             @endif
+
+            <div class="logo-container">
+                <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200" alt="Mr. Giova Logo" class="logo-img">
+            </div>
+
+            <h1 class="restaurant-name">Mr. Giova</h1>
+            <div class="staff-access">STAFF ACCESS ONLY</div>
 
             <form action="/login" method="POST">
                 @csrf
                 
                 <div class="form-group">
-                    <label class="form-label" for="email">Correo Electrónico</label>
+                    <label class="form-label" for="email">CORREO ELECTRÓNICO</label>
                     <div class="input-wrapper">
-                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="ejemplo@mrgiova.com" required autofocus>
-                        <i class="fa-solid fa-envelope"></i>
+                        <i class="fa-regular fa-envelope"></i>
+                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@mrgiova.com" required autofocus>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="password">Contraseña</label>
+                    <label class="form-label" for="password">CONTRASEÑA</label>
                     <div class="input-wrapper">
+                        <i class="fa-solid fa-lock" style="font-size: 14px;"></i>
                         <input class="form-control" type="password" id="password" name="password" placeholder="••••••••" required>
-                        <i class="fa-solid fa-lock"></i>
                     </div>
                 </div>
 
                 <div class="form-options">
                     <label class="remember-me">
-                        <input type="checkbox" name="remember">
-                        Recordarme en este equipo
+                        <input type="checkbox" name="remember" id="remember">
+                        Recordarme
                     </label>
+                    <a href="#" class="forgot-password">¿Olvidó su contraseña?</a>
                 </div>
 
-                <button type="submit" class="btn-mrgiova btn-login">
-                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                <button type="submit" class="btn-login">
+                    INICIAR SESIÓN <i class="fa-solid fa-arrow-right-to-bracket" style="font-size: 14px;"></i>
                 </button>
             </form>
+
+            <div class="card-footer">
+                Internal System Security Protocol v4.2
+            </div>
         </div>
     </div>
 
-    <div class="login-footer">
-        &copy; {{ date('Y') }} Mr.Giova. Todos los derechos reservados.
-    </div>
+    <footer class="page-footer">
+        <div class="copyright">
+            &copy; {{ date('Y') }} HAUTE EPICURE. ALL RIGHTS RESERVED.
+        </div>
+        <div class="footer-links">
+            <a href="#">PRIVACY POLICY</a>
+            <a href="#">TERMS OF SERVICE</a>
+            <a href="#">CONTACT</a>
+        </div>
+    </footer>
 
 </body>
 </html>
