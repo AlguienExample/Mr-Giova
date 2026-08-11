@@ -164,8 +164,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 15,
-            'ingredientes' => 'Carne res, Pan brioche, Queso cheddar, Lechuga, Tomate, Cebolla, Salsa Mr.Giova',
-            'stock' => 15
+            'ingredientes' => 'Carne res, Pan brioche, Queso cheddar, Lechuga, Tomate, Cebolla, Salsa Mr.Giova'
         ]);
 
         $p2 = Producto::create([
@@ -176,8 +175,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 15,
-            'ingredientes' => 'Carne res, Pan brioche, Tocino, Queso cheddar, Cebolla caramelizada, Salsa BBQ',
-            'stock' => 12
+            'ingredientes' => 'Carne res, Pan brioche, Tocino, Queso cheddar, Cebolla caramelizada, Salsa BBQ'
         ]);
 
         $p3 = Producto::create([
@@ -188,8 +186,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 18,
-            'ingredientes' => 'Doble Carne res, Pan brioche, Doble Queso cheddar, Lechuga, Tomate, Salsa especial',
-            'stock' => 2
+            'ingredientes' => 'Doble Carne res, Pan brioche, Doble Queso cheddar, Lechuga, Tomate, Salsa especial'
         ]);
 
         // Tacos y Quesadillas
@@ -201,8 +198,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 10,
-            'ingredientes' => 'Cerdo adobado, Tortillas de maíz, Piña, Cilantro, Cebolla, Salsa verde',
-            'stock' => 20
+            'ingredientes' => 'Cerdo adobado, Tortillas de maíz, Piña, Cilantro, Cebolla, Salsa verde'
         ]);
 
         $p5 = Producto::create([
@@ -213,8 +209,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 12,
-            'ingredientes' => 'Birria de res, Tortilla de harina grande, Queso Oaxaca, Consomé, Cebolla, Cilantro',
-            'stock' => 18
+            'ingredientes' => 'Birria de res, Tortilla de harina grande, Queso Oaxaca, Consomé, Cebolla, Cilantro'
         ]);
 
         $p6 = Producto::create([
@@ -225,8 +220,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1615870216519-2f9fa575fa5c?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 10,
-            'ingredientes' => 'Cerdo en achiote, Tortillas de maíz, Cebolla morada curtida, Chile habanero, Cilantro',
-            'stock' => 22
+            'ingredientes' => 'Cerdo en achiote, Tortillas de maíz, Cebolla morada curtida, Chile habanero, Cilantro'
         ]);
 
         // Acompañamientos
@@ -238,8 +232,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 5,
-            'ingredientes' => 'Papas cortadas, Aceite vegetal, Pimentón, Sal marina',
-            'stock' => 3
+            'ingredientes' => 'Papas cortadas, Aceite vegetal, Pimentón, Sal marina'
         ]);
 
         $p8 = Producto::create([
@@ -250,8 +243,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1518013770417-ce371a414136?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 7,
-            'ingredientes' => 'Papas rústicas, Salsa de queso, Pico de gallo, Crema agria, Rodajas de jalapeño',
-            'stock' => 10
+            'ingredientes' => 'Papas rústicas, Salsa de queso, Pico de gallo, Crema agria, Rodajas de jalapeño'
         ]);
 
         // Bebidas
@@ -263,8 +255,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 3,
-            'ingredientes' => 'Arroz, Agua, Leche, Canela, Azúcar, Vainilla',
-            'stock' => 25
+            'ingredientes' => 'Arroz, Agua, Leche, Canela, Azúcar, Vainilla'
         ]);
 
         $p10 = Producto::create([
@@ -275,8 +266,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 3,
-            'ingredientes' => 'Flores de Jamaica, Agua, Azúcar',
-            'stock' => 30
+            'ingredientes' => 'Flores de Jamaica, Agua, Azúcar'
         ]);
 
         $p11 = Producto::create([
@@ -287,8 +277,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 2,
-            'ingredientes' => 'Coca-Cola original',
-            'stock' => 5
+            'ingredientes' => 'Coca-Cola original'
         ]);
 
         $p12 = Producto::create([
@@ -299,8 +288,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 5,
-            'ingredientes' => 'Tequila, Triple sec, Tamarindo, Limón, Chile Tajín',
-            'stock' => 15
+            'ingredientes' => 'Tequila, Triple sec, Tamarindo, Limón, Chile Tajín'
         ]);
 
         // Postres
@@ -312,8 +300,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1589135306090-e7f09099c9d9?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 8,
-            'ingredientes' => 'Harina de trigo, Azúcar, Canela, Cajeta tradicional',
-            'stock' => 8
+            'ingredientes' => 'Harina de trigo, Azúcar, Canela, Cajeta tradicional'
         ]);
 
         $p14 = Producto::create([
@@ -324,8 +311,7 @@ class DatabaseSeeder extends Seeder
             'imagen_url' => 'https://images.unsplash.com/photo-1542826438-bd32f43d626f?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 5,
-            'ingredientes' => 'Huevo, Harina, Leche evaporada, Leche condensada, Crema de leche, Fresas',
-            'stock' => 6
+            'ingredientes' => 'Huevo, Harina, Leche evaporada, Leche condensada, Crema de leche, Fresas'
         ]);
 
         // 6. Historial de Pedidos para el Dashboard (Últimos 7 días)

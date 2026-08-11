@@ -131,6 +131,7 @@
         let deliveredOrders = [];
         let soundEnabled = true;
         let audioCtx = null;
+        let lastOrdersJson = '';
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchActiveOrders();
@@ -200,6 +201,13 @@
                 .then(res => res.json())
                 .then(orders => {
                     detectNewOrders(orders);
+
+                    const ordersString = JSON.stringify(orders);
+                    if (ordersString === lastOrdersJson) {
+                        return; // Evita borrar el DOM si no hay cambios (elimina el parpadeo)
+                    }
+                    lastOrdersJson = ordersString;
+
                     currentActiveOrders = orders;
                     renderKanban();
                 })
@@ -381,8 +389,10 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) fetchActiveOrders();
-                else alert('Error actualizando estado.');
+                if (data.success) {
+                    lastOrdersJson = '';
+                    fetchActiveOrders();
+                } else alert('Error actualizando estado.');
             })
             .catch(err => console.error("Error al actualizar estado", err));
         }

@@ -1,59 +1,83 @@
-/* Mr.Giova — Panel Administrativo (estilo KFC: rojo, amarillo, blanco) */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap');
+/* Mr.Giova — Panel Administrativo (Diseño Ejecutivo Elegante en Gris Oscuro con Acentos Dorados) */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-    --kfc-red: #E4002B;
-    --kfc-red-dark: #B8001F;
-    --kfc-yellow: #FFC72C;
-    --kfc-yellow-dark: #E5A800;
-    --kfc-white: #FFFFFF;
-    --kfc-gray-100: #F5F5F5;
-    --kfc-gray-200: #EBEBEB;
-    --kfc-gray-400: #9E9E9E;
-    --kfc-gray-700: #3D3D3D;
-    --kfc-black: #202020;
-    --kfc-green: #27AE60;
-    --font-display: 'Bebas Neue', sans-serif;
-    --font-body: 'Inter', sans-serif;
+    /* Superficies en escala de grises oscuros elegantes */
+    --admin-bg-body: #0F1117;
+    /* Fondo profundo de la aplicación */
+    --admin-bg-sidebar: #141722;
+    /* Sidebar lateral */
+    --admin-bg-card: #181C28;
+    /* Tarjetas e información */
+    --admin-bg-header: #141722;
+    /* Header superior */
+    --admin-bg-hover: #212638;
+    /* Hover para listas/filas */
+    --admin-border: #262B3D;
+    /* Bordes finos y limpios */
+    --admin-border-gold: rgba(255, 193, 7, 0.3);
+
+    /* Textos con alto contraste y legibilidad */
+    --admin-text-main: #F8FAFC;
+    /* Texto blanco principal */
+    --admin-text-muted: #94A3B8;
+    /* Texto secundario gris */
+    --admin-text-subtle: #64748B;
+    /* Etiquetas y subtítulos */
+
+    /* Acentos Dorados/Amarillos Elegantes */
+    --admin-gold: #FFC107;
+    /* Amarillo/Dorado principal de acento */
+    --admin-gold-hover: #FFD54F;
+    --admin-gold-dark: #D49B00;
+    --admin-gold-glow: rgba(255, 193, 7, 0.15);
+
+    /* Acentos de estado */
+    --admin-green: #10B981;
+    --admin-blue: #3B82F6;
+    --admin-red: #EF4444;
+
+    /* Fuentes y Sombras */
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-pill: 999px;
     --sidebar-w: 260px;
-    --header-h: 64px;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 8px 24px rgba(228, 0, 43, 0.1);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+    --header-h: 68px;
+
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+    --shadow-gold: 0 4px 20px rgba(255, 193, 7, 0.2);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     width: 100%;
     height: 100%;
 }
 
 body.admin-page {
     font-family: var(--font-body);
-    background: var(--kfc-gray-100);
-    color: var(--kfc-black);
+    background: var(--admin-bg-body);
+    color: var(--admin-text-main);
     overflow: hidden;
 }
 
+/* Franja de acento superior */
 .kfc-stripe-top {
-    height: 6px;
-    background: repeating-linear-gradient(
-        90deg,
-        var(--kfc-red) 0,
-        var(--kfc-red) 50%,
-        var(--kfc-yellow) 50%,
-        var(--kfc-yellow) 100%
-    );
-    background-size: 24px 6px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--admin-gold) 0%, var(--admin-gold-dark) 50%, var(--admin-bg-body) 100%);
     flex-shrink: 0;
 }
 
@@ -61,28 +85,28 @@ body.admin-page {
 .admin-app {
     display: flex;
     width: 100%;
-    height: calc(100vh - 6px);
-    height: calc(100dvh - 6px);
+    height: calc(100vh - 3px);
+    height: calc(100dvh - 3px);
     overflow: hidden;
 }
 
 /* ─── SIDEBAR ─── */
 .admin-sidebar {
     width: var(--sidebar-w);
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: var(--admin-bg-sidebar);
+    color: var(--admin-text-main);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     flex-shrink: 0;
-    border-right: 4px solid var(--kfc-yellow);
+    border-right: 1px solid var(--admin-border);
     z-index: 50;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .admin-sidebar-brand {
-    padding: 24px 20px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 22px 20px;
+    border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-sidebar-logo {
@@ -91,128 +115,137 @@ body.admin-page {
     gap: 12px;
 }
 
+.admin-sidebar-logo img,
 .admin-logo-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--kfc-yellow);
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display);
-    font-size: 22px;
-    color: var(--kfc-red);
-    flex-shrink: 0;
+    object-fit: cover;
+    border: 2px solid var(--admin-gold-dark);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .admin-sidebar-logo h2 {
     font-family: var(--font-display);
-    font-size: 26px;
-    letter-spacing: 1px;
-    font-weight: 400;
-    line-height: 1;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    font-weight: 800;
+    color: var(--admin-text-main);
+    line-height: 1.1;
 }
 
 .admin-sidebar-logo h2 span {
-    color: var(--kfc-yellow);
+    color: var(--admin-gold);
 }
 
 .admin-sidebar-subtitle {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    opacity: 0.75;
-    margin-top: 6px;
+    color: var(--admin-text-muted);
+    margin-top: 4px;
     font-weight: 600;
 }
 
 .admin-nav {
     list-style: none;
-    padding: 16px 12px;
+    padding: 20px 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .admin-nav-item a {
     display: flex;
     align-items: center;
     gap: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--admin-text-muted);
     text-decoration: none;
-    padding: 12px 14px;
-    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
     font-size: 14px;
     font-weight: 600;
-    transition: background 0.2s, color 0.2s;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
 .admin-nav-item a i {
     width: 20px;
     text-align: center;
-    font-size: 15px;
+    font-size: 16px;
+    color: var(--admin-text-muted);
+    transition: color 0.2s ease;
 }
 
 .admin-nav-item a:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--kfc-white);
+    background: var(--admin-bg-hover);
+    color: var(--admin-text-main);
 }
 
+.admin-nav-item a:hover i {
+    color: var(--admin-gold);
+}
+
+/* Item activo de navegación */
 .admin-nav-item.active a {
-    background: var(--kfc-yellow);
-    color: var(--kfc-red-dark);
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, rgba(24, 28, 40, 0.4) 100%);
+    color: var(--admin-gold);
     font-weight: 700;
+    border: 1px solid rgba(255, 193, 7, 0.25);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .admin-nav-item.active a i {
-    color: var(--kfc-red);
+    color: var(--admin-gold);
 }
 
 .admin-sidebar-footer {
     padding: 16px 12px 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: 1px solid var(--admin-border);
 }
 
 .admin-logout {
     display: flex;
     align-items: center;
     gap: 12px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--admin-text-muted);
     text-decoration: none;
-    padding: 10px 14px;
+    padding: 12px 16px;
     font-size: 13px;
     font-weight: 600;
-    border-radius: var(--radius-sm);
-    transition: color 0.2s, background 0.2s;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
 }
 
 .admin-logout:hover {
-    color: var(--kfc-white);
-    background: rgba(0, 0, 0, 0.15);
+    color: var(--admin-red);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .admin-sidebar-overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     z-index: 45;
 }
 
-/* ─── MAIN ─── */
+/* ─── MAIN CONTENT ─── */
 .admin-main {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
+    background: var(--admin-bg-body);
 }
 
 .admin-header {
     height: var(--header-h);
-    background: var(--kfc-white);
-    border-bottom: 3px solid var(--kfc-yellow);
+    background: var(--admin-bg-header);
+    border-bottom: 1px solid var(--admin-border);
     padding: 0 clamp(16px, 3vw, 32px);
     display: flex;
     align-items: center;
@@ -233,9 +266,9 @@ body.admin-page {
     display: none;
     width: 40px;
     height: 40px;
-    border: 2px solid var(--kfc-gray-200);
-    background: var(--kfc-white);
-    color: var(--kfc-red);
+    border: 1px solid var(--admin-border);
+    background: var(--admin-bg-card);
+    color: var(--admin-gold);
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 18px;
@@ -246,16 +279,16 @@ body.admin-page {
 
 .admin-header-title h1 {
     font-family: var(--font-display);
-    font-size: clamp(22px, 3vw, 32px);
-    color: var(--kfc-red);
-    letter-spacing: 1px;
-    font-weight: 400;
-    line-height: 1;
+    font-size: clamp(20px, 2.5vw, 26px);
+    color: var(--admin-text-main);
+    letter-spacing: -0.3px;
+    font-weight: 800;
+    line-height: 1.2;
 }
 
 .admin-header-title p {
     font-size: 12px;
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-muted);
     margin-top: 2px;
     font-weight: 500;
 }
@@ -263,7 +296,7 @@ body.admin-page {
 .admin-header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-shrink: 0;
 }
 
@@ -271,16 +304,18 @@ body.admin-page {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: var(--admin-bg-card);
+    border: 1px solid var(--admin-border-gold);
+    color: var(--admin-text-main);
     padding: 8px 16px;
     border-radius: var(--radius-pill);
     font-size: 13px;
     font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .admin-user-badge i {
-    color: var(--kfc-yellow);
+    color: var(--admin-gold);
 }
 
 .admin-content {
@@ -291,31 +326,33 @@ body.admin-page {
 
 /* ─── CARDS ─── */
 .mrgiova-card {
-    background: var(--kfc-white);
+    background: var(--admin-bg-card);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    border: 1px solid var(--kfc-gray-200);
+    border: 1px solid var(--admin-border);
     padding: 24px;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .mrgiova-card:hover {
     box-shadow: var(--shadow-md);
+    border-color: rgba(255, 193, 7, 0.2);
 }
 
 .mrgiova-card h3 {
     font-family: var(--font-display);
-    font-size: 22px;
-    color: var(--kfc-red);
-    letter-spacing: 0.5px;
-    font-weight: 400;
+    font-size: 18px;
+    color: var(--admin-text-main);
+    letter-spacing: -0.2px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
 .mrgiova-card h3 i {
-    font-size: 18px;
+    font-size: 16px;
+    color: var(--admin-gold);
 }
 
 /* ─── STATS GRID ─── */
@@ -327,16 +364,16 @@ body.admin-page {
 }
 
 .stat-card {
-    background: var(--kfc-white);
+    background: var(--admin-bg-card);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    border: 1px solid var(--kfc-gray-200);
-    border-top: 4px solid var(--kfc-red);
-    padding: 22px;
+    border: 1px solid var(--admin-border);
+    border-top: 3px solid var(--admin-gold);
+    padding: 20px 22px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .stat-card:hover {
@@ -344,40 +381,78 @@ body.admin-page {
     box-shadow: var(--shadow-md);
 }
 
-.stat-card:nth-child(2) { border-top-color: var(--kfc-yellow); }
-.stat-card:nth-child(3) { border-top-color: var(--kfc-green); }
-.stat-card:nth-child(4) { border-top-color: var(--kfc-red-dark); }
+.stat-card:nth-child(2) {
+    border-top-color: var(--admin-blue);
+}
+
+.stat-card:nth-child(3) {
+    border-top-color: var(--admin-green);
+}
+
+.stat-card:nth-child(4) {
+    border-top-color: var(--admin-gold-dark);
+}
 
 .stat-info h4 {
     font-size: 11px;
     text-transform: uppercase;
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-subtle);
     font-weight: 700;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     margin-bottom: 8px;
 }
 
 .stat-value {
     font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 400;
-    color: var(--kfc-red);
-    letter-spacing: 0.5px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--admin-text-main);
+    letter-spacing: -0.5px;
     line-height: 1;
 }
 
-.stat-card:nth-child(2) .stat-value { color: var(--kfc-yellow-dark); }
-.stat-card:nth-child(3) .stat-value { color: var(--kfc-green); }
-
-.stat-icon {
-    font-size: 32px;
-    color: var(--kfc-red);
-    opacity: 0.85;
+.stat-card:nth-child(1) .stat-value {
+    color: var(--admin-gold);
 }
 
-.stat-card:nth-child(2) .stat-icon { color: var(--kfc-yellow); }
-.stat-card:nth-child(3) .stat-icon { color: var(--kfc-green); }
-.stat-card:nth-child(4) .stat-icon { color: var(--kfc-red-dark); }
+.stat-card:nth-child(2) .stat-value {
+    color: #60A5FA;
+}
+
+.stat-card:nth-child(3) .stat-value {
+    color: #34D399;
+}
+
+.stat-card:nth-child(4) .stat-value {
+    color: #FBBF24;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--admin-gold);
+}
+
+.stat-card:nth-child(2) .stat-icon {
+    color: var(--admin-blue);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.stat-card:nth-child(3) .stat-icon {
+    color: var(--admin-green);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.stat-card:nth-child(4) .stat-icon {
+    color: var(--admin-gold);
+    background: rgba(255, 193, 7, 0.1);
+}
 
 /* ─── LOWER GRID ─── */
 .admin-lower-grid {
@@ -408,21 +483,22 @@ body.admin-page {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--kfc-gray-200);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--admin-border);
 }
 
 .inventory-item-name,
 .top-product-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--kfc-black);
+    color: var(--admin-text-main);
 }
 
 .inventory-item-qty {
-    background: rgba(228, 0, 43, 0.08);
-    color: var(--kfc-red);
-    padding: 3px 10px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 4px 12px;
     border-radius: var(--radius-pill);
     font-size: 12px;
     font-weight: 700;
@@ -435,21 +511,21 @@ body.admin-page {
 
 .top-product-progress {
     height: 8px;
-    background: var(--kfc-gray-100);
+    background: #232838;
     border-radius: var(--radius-pill);
     overflow: hidden;
 }
 
 .top-product-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--kfc-red), var(--kfc-yellow));
+    background: linear-gradient(90deg, var(--admin-gold-dark), var(--admin-gold));
     border-radius: var(--radius-pill);
 }
 
 .top-product-qty {
     font-size: 13px;
     font-weight: 800;
-    color: var(--kfc-red);
+    color: var(--admin-gold);
     width: 28px;
     text-align: right;
 }
@@ -463,61 +539,63 @@ body.admin-page {
 }
 
 .table-status-card {
-    background: var(--kfc-white);
+    background: var(--admin-bg-body);
     border-radius: var(--radius-sm);
     padding: 14px;
     text-align: center;
-    border: 2px solid var(--kfc-gray-200);
+    border: 1px solid var(--admin-border);
     font-weight: 700;
-    transition: transform 0.15s, border-color 0.2s;
+    transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .table-status-card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .table-status-card.disponible {
-    border-color: var(--kfc-green);
-    color: var(--kfc-green);
-    background: rgba(39, 174, 96, 0.06);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34D399;
+    background: rgba(16, 185, 129, 0.08);
 }
 
 .table-status-card.ocupada {
-    border-color: var(--kfc-red);
-    color: var(--kfc-red);
-    background: rgba(228, 0, 43, 0.06);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #F87171;
+    background: rgba(239, 68, 68, 0.08);
 }
 
 .table-status-card.reservada {
-    border-color: var(--kfc-yellow-dark);
-    color: var(--kfc-yellow-dark);
-    background: rgba(255, 199, 44, 0.1);
+    border-color: rgba(255, 193, 7, 0.4);
+    color: var(--admin-gold);
+    background: rgba(255, 193, 7, 0.08);
 }
 
 .table-status-card.mantenimiento {
-    border-color: var(--kfc-gray-400);
-    color: var(--kfc-gray-400);
-    background: var(--kfc-gray-100);
+    border-color: var(--admin-border);
+    color: var(--admin-text-subtle);
+    background: var(--admin-bg-card);
 }
 
 .table-status-card-num {
     font-family: var(--font-display);
-    font-size: 22px;
-    letter-spacing: 0.5px;
+    font-size: 20px;
+    letter-spacing: 0.3px;
     margin-bottom: 4px;
+    font-weight: 800;
 }
 
 .table-status-card-label {
     font-size: 10px;
     text-transform: uppercase;
-    opacity: 0.85;
+    opacity: 0.9;
     font-weight: 700;
     letter-spacing: 0.4px;
 }
 
 .card-meta-label {
     font-size: 12px;
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-subtle);
     font-weight: 600;
 }
 
@@ -541,7 +619,7 @@ body.admin-page {
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-subtle);
     font-size: 14px;
 }
 
@@ -549,42 +627,42 @@ body.admin-page {
     width: 100%;
     padding: 12px 16px 12px 42px;
     border-radius: var(--radius-pill);
-    border: 2px solid var(--kfc-gray-200);
+    border: 1px solid var(--admin-border);
     outline: none;
     font-size: 14px;
     font-family: var(--font-body);
-    background: var(--kfc-gray-100);
-    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    background: var(--admin-bg-body);
+    color: var(--admin-text-main);
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .history-search-input:focus {
-    border-color: var(--kfc-red);
-    background: var(--kfc-white);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.12);
+    border-color: var(--admin-gold);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.15);
 }
 
 .history-status-select {
     padding: 12px 20px;
     border-radius: var(--radius-pill);
-    border: 2px solid var(--kfc-gray-200);
+    border: 1px solid var(--admin-border);
     outline: none;
     font-size: 14px;
     font-family: var(--font-body);
     font-weight: 600;
-    background: var(--kfc-white);
-    color: var(--kfc-gray-700);
+    background: var(--admin-bg-body);
+    color: var(--admin-text-main);
     cursor: pointer;
     transition: border-color 0.2s;
 }
 
 .history-status-select:focus {
-    border-color: var(--kfc-red);
+    border-color: var(--admin-gold);
 }
 
 .mrgiova-table-wrapper {
     overflow-x: auto;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--kfc-gray-200);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--admin-border);
 }
 
 .mrgiova-table {
@@ -594,27 +672,26 @@ body.admin-page {
 }
 
 .mrgiova-table th {
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: #1C2030;
+    color: var(--admin-text-muted);
     padding: 14px 16px;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
+    border-bottom: 2px solid var(--admin-border);
 }
-
-.mrgiova-table th:first-child { border-top-left-radius: var(--radius-sm); }
-.mrgiova-table th:last-child { border-top-right-radius: var(--radius-sm); }
 
 .mrgiova-table td {
     padding: 14px 16px;
-    border-bottom: 1px solid var(--kfc-gray-200);
+    border-bottom: 1px solid var(--admin-border);
     font-size: 14px;
-    background: var(--kfc-white);
+    background: var(--admin-bg-card);
+    color: var(--admin-text-main);
 }
 
 .mrgiova-table tr:hover td {
-    background: rgba(228, 0, 43, 0.03);
+    background: var(--admin-bg-hover);
 }
 
 .mrgiova-table tr:last-child td {
@@ -632,7 +709,7 @@ body.admin-page {
 
 .history-pagination-info {
     font-size: 13px;
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-muted);
     font-weight: 500;
 }
 
@@ -642,11 +719,11 @@ body.admin-page {
 }
 
 .text-muted {
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-muted);
 }
 
 .text-price {
-    color: var(--kfc-red);
+    color: var(--admin-gold);
     font-weight: 800;
 }
 
@@ -654,46 +731,49 @@ body.admin-page {
 .btn-kfc {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    gap: 8px;
+    padding: 9px 18px;
     border-radius: var(--radius-pill);
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
     cursor: pointer;
     border: none;
-    transition: transform 0.15s, background 0.2s;
+    transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
     white-space: nowrap;
     font-family: var(--font-body);
 }
 
 .btn-kfc:hover {
-    transform: scale(1.02);
+    transform: scale(1.03);
 }
 
 .btn-kfc-primary {
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: linear-gradient(135deg, var(--admin-gold) 0%, var(--admin-gold-dark) 100%);
+    color: #0F1117;
+    box-shadow: 0 4px 14px rgba(255, 193, 7, 0.25);
 }
 
 .btn-kfc-primary:hover {
-    background: var(--kfc-red-dark);
+    background: linear-gradient(135deg, #FFD54F 0%, #FFC107 100%);
+    box-shadow: 0 6px 18px rgba(255, 193, 7, 0.35);
 }
 
 .btn-kfc-secondary {
-    background: var(--kfc-white);
-    color: var(--kfc-red);
-    border: 2px solid var(--kfc-red);
+    background: var(--admin-bg-card);
+    color: var(--admin-gold);
+    border: 1px solid rgba(255, 193, 7, 0.4);
 }
 
 .btn-kfc-secondary:hover {
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--admin-gold-hover);
+    border-color: var(--admin-gold);
 }
 
 .btn-kfc-secondary:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
     transform: none;
 }
@@ -706,51 +786,52 @@ body.admin-page {
     font-weight: 800;
     display: inline-block;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
 }
 
 .status-badge.nuevo {
-    background: rgba(255, 199, 44, 0.2);
-    color: var(--kfc-yellow-dark);
-    border: 1px solid rgba(255, 199, 44, 0.5);
+    background: rgba(255, 193, 7, 0.12);
+    color: var(--admin-gold);
+    border: 1px solid rgba(255, 193, 7, 0.3);
 }
 
 .status-badge.preparacion {
-    background: rgba(228, 0, 43, 0.08);
-    color: var(--kfc-red);
-    border: 1px solid rgba(228, 0, 43, 0.25);
+    background: rgba(59, 130, 246, 0.12);
+    color: #60A5FA;
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .status-badge.listo {
-    background: rgba(39, 174, 96, 0.1);
-    color: var(--kfc-green);
-    border: 1px solid rgba(39, 174, 96, 0.3);
+    background: rgba(16, 185, 129, 0.12);
+    color: #34D399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .status-badge.entregado {
-    background: var(--kfc-gray-100);
-    color: var(--kfc-gray-700);
-    border: 1px solid var(--kfc-gray-200);
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--admin-text-muted);
+    border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .status-badge.cancelado {
-    background: rgba(228, 0, 43, 0.12);
-    color: var(--kfc-red-dark);
-    border: 1px solid rgba(228, 0, 43, 0.3);
+    background: rgba(239, 68, 68, 0.12);
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* ─── MODAL ─── */
 .mrgiova-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
     z-index: 100;
     display: flex;
     justify-content: center;
     align-items: flex-end;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s;
+    transition: opacity 0.3s ease;
 }
 
 .mrgiova-modal.open {
@@ -763,9 +844,11 @@ body.admin-page {
     max-width: 640px;
     max-height: 85vh;
     max-height: 85dvh;
-    background: var(--kfc-white);
+    background: var(--admin-bg-card);
+    color: var(--admin-text-main);
     border-top-left-radius: var(--radius-lg);
     border-top-right-radius: var(--radius-lg);
+    border: 1px solid var(--admin-border);
     overflow-y: auto;
     transform: translateY(100%);
     transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
@@ -788,25 +871,25 @@ body.admin-page {
 
 .modal-header-bar {
     padding: 20px 24px;
-    border-bottom: 3px solid var(--kfc-yellow);
+    border-bottom: 1px solid var(--admin-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--kfc-red);
-    color: var(--kfc-white);
+    background: #1C2030;
+    color: var(--admin-text-main);
 }
 
 .modal-header-bar h3 {
     font-family: var(--font-display);
-    font-size: 24px;
-    letter-spacing: 0.5px;
-    font-weight: 400;
+    font-size: 20px;
+    letter-spacing: 0.3px;
+    font-weight: 700;
 }
 
 .modal-close-btn {
-    background: var(--kfc-yellow);
-    color: var(--kfc-red-dark);
-    border: none;
+    background: var(--admin-bg-card);
+    color: var(--admin-gold);
+    border: 1px solid var(--admin-border-gold);
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -816,11 +899,12 @@ body.admin-page {
     cursor: pointer;
     font-size: 16px;
     flex-shrink: 0;
-    transition: transform 0.15s;
+    transition: transform 0.15s, background 0.2s;
 }
 
 .modal-close-btn:hover {
     transform: scale(1.08);
+    background: rgba(255, 193, 7, 0.15);
 }
 
 .modal-body {
@@ -834,10 +918,10 @@ body.admin-page {
     gap: 15px;
     margin-bottom: 20px;
     font-size: 13px;
-    background: var(--kfc-gray-100);
+    background: var(--admin-bg-body);
     padding: 16px;
-    border-radius: var(--radius-sm);
-    border-left: 4px solid var(--kfc-red);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--admin-gold);
 }
 
 .detail-info-grid p {
@@ -845,14 +929,14 @@ body.admin-page {
 }
 
 .detail-info-grid strong {
-    color: var(--kfc-gray-700);
+    color: var(--admin-text-muted);
 }
 
 .modifier-group-title {
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    color: var(--kfc-red);
+    color: var(--admin-gold);
     letter-spacing: 0.8px;
     margin-bottom: 8px;
 }
@@ -862,18 +946,18 @@ body.admin-page {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    background: var(--kfc-gray-100);
+    background: var(--admin-bg-body);
     padding: 16px;
-    border-radius: var(--radius-sm);
-    border-left: 4px solid var(--kfc-yellow);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--admin-blue);
 }
 
 .detail-times-box p strong {
-    color: var(--kfc-gray-700);
+    color: var(--admin-text-muted);
 }
 
 .empty-state-text {
-    color: var(--kfc-gray-400);
+    color: var(--admin-text-muted);
     font-size: 13px;
     text-align: center;
     padding: 12px 0;
@@ -894,11 +978,11 @@ body.admin-page {
 @media (max-width: 768px) {
     .admin-sidebar {
         position: fixed;
-        top: 6px;
+        top: 3px;
         left: 0;
         bottom: 0;
         transform: translateX(-100%);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-md);
     }
 
     .admin-sidebar.open {
