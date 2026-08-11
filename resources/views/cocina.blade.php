@@ -19,7 +19,7 @@
             <div>
                 <div class="kitchen-sidebar-brand">
                     <div class="kitchen-sidebar-logo">
-                        <img src="{{ asset('imagenes/logo.png') }}" alt="Logo Mr.Giova" class="menu-logo" width="48" height="48">
+                        <img src="{{ asset('images/logo.png') }}" alt="Logo Mr.Giova" class="menu-logo" width="48" height="48">
                         <div>
                             <h2>Mr.<span>Giova</span></h2>
                             <div class="kitchen-sidebar-subtitle">Panel de Cocina</div>
@@ -42,12 +42,9 @@
                 </ul>
             </div>
             <div class="kitchen-sidebar-footer">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="kitchen-logout" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;">
-                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
-                    </button>
-                </form>
+                <a href="#" class="kitchen-logout" onclick="alert('Sesión de cocina finalizada'); return false;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+                </a>
             </div>
         </aside>
 
@@ -134,6 +131,7 @@
         let deliveredOrders = [];
         let soundEnabled = true;
         let audioCtx = null;
+        let lastOrdersJson = '';
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchActiveOrders();
@@ -203,6 +201,13 @@
                 .then(res => res.json())
                 .then(orders => {
                     detectNewOrders(orders);
+
+                    const ordersString = JSON.stringify(orders);
+                    if (ordersString === lastOrdersJson) {
+                        return; // Evita borrar el DOM si no hay cambios (elimina el parpadeo)
+                    }
+                    lastOrdersJson = ordersString;
+
                     currentActiveOrders = orders;
                     renderKanban();
                 })
@@ -384,8 +389,10 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) fetchActiveOrders();
-                else alert('Error actualizando estado.');
+                if (data.success) {
+                    lastOrdersJson = '';
+                    fetchActiveOrders();
+                } else alert('Error actualizando estado.');
             })
             .catch(err => console.error("Error al actualizar estado", err));
         }

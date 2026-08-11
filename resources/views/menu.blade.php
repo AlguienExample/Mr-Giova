@@ -14,28 +14,45 @@
     <div class="menu-app" id="app">
         <!-- HEADER -->
         <header class="menu-header">
-            <div class="menu-header-brand">
-                    <img src="{{ asset('imagenes/logo.png') }}" alt="Logo Mr.Giova" class="menu-logo" width="48" height="48">
-                <div class="menu-header-title">
-                    <h2>Mr.<span>Giova</span></h2>
+            <div class="menu-header-top">
+                <div class="menu-header-brand">
+                    <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop" alt="Mr.Giova" class="menu-header-real-logo">
+                    <div class="menu-header-title">
+                        <h2>Mr.<span>Giova</span></h2>
+                    </div>
+                </div>
+                <div class="menu-header-actions">
+                    <div class="menu-table-badge" id="tableBadge">
+                        Mesa {{ $mesa->numero_mesa }}
+                    </div>
+                    <button class="menu-cart-icon-btn" id="headerCartBtn" onclick="openCart()" aria-label="Ver carrito">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <span class="cart-badge" id="headerCartBadge" style="display:none;">0</span>
+                    </button>
                 </div>
             </div>
-            <div class="menu-header-actions">
-                <div class="menu-table-badge" id="tableBadge">
-                    Mesa {{ $mesa->numero_mesa }}
+            
+            <div class="menu-categories-bar">
+                <div class="menu-categories-scroll-header" id="categoriesScroll">
+                    <div class="category-chip active" id="chip-all" onclick="selectCategory('all')">
+                        <i class="fa-solid fa-utensils"></i> Todo
+                    </div>
                 </div>
-                <button class="menu-cart-icon-btn" id="headerCartBtn" onclick="openCart()" aria-label="Ver carrito">
-                    <i class="fa-solid fa-basket-shopping"></i>
-                    <span class="cart-badge" id="headerCartBadge" style="display:none;">0</span>
-                </button>
             </div>
         </header>
 
         <!-- PANTALLA PRINCIPAL: MENÚ -->
         <div id="menuScreen">  
             <div class="menu-hero">
-                <h3>¡Sabor que Enamora!</h3>
-                <p>Escanea, pide y disfruta el auténtico sazón de Mr.Giova directamente en tu mesa.</p>       
+                <div class="menu-hero-overlay"></div>
+                <div class="floating-decor float-1"><i class="fa-solid fa-burger"></i></div>
+                <div class="floating-decor float-2"><i class="fa-solid fa-utensils"></i></div>
+                <div class="floating-decor float-3"><i class="fa-solid fa-pizza-slice"></i></div>
+                <div class="floating-decor float-4"><i class="fa-solid fa-wine-glass"></i></div>
+                <div class="menu-hero-content">
+                    <h3>"La buena comida es el fundamento de la verdadera felicidad."</h3>
+                    <p>Déjate llevar por los sabores y disfruta de un momento inolvidable en Mr.Giova.</p>
+                </div>
             </div>
 
             <div class="menu-search-wrap">
@@ -45,13 +62,7 @@
                 </div>
             </div>
 
-            <div class="menu-categories">
-                <div class="menu-categories-scroll" id="categoriesScroll">
-                    <div class="category-chip active" id="chip-all" onclick="selectCategory('all')">
-                        <i class="fa-solid fa-utensils"></i> Todo
-                    </div>
-                </div>
-            </div>
+
 
             <div class="menu-products" id="productsWrapper">
                 <div class="menu-loading">
@@ -71,6 +82,24 @@
                 <div class="floating-cart-right">
                     <span class="floating-cart-total" id="cartTotalPreview">$0</span>
                     <button class="floating-cart-btn" type="button">Ver carrito</button>
+                </div>
+            </div>
+
+            <!-- BARRA FLOTANTE SEGUIMIENTO DE PEDIDO -->
+            <div class="floating-order-bar" id="floatingOrderBar" style="display: none;" onclick="openActiveOrderTracking()">
+                <div class="floating-order-left">
+                    <div class="floating-order-icon" id="floatingOrderIcon">
+                        <i class="fa-solid fa-bell-concierge"></i>
+                    </div>
+                    <div class="floating-order-info">
+                        <span class="floating-order-title" id="floatingOrderTitle">Ver el proceso de mi pedido</span>
+                        <span class="floating-order-subtitle" id="floatingOrderSubtitle">Consultando estado...</span>
+                    </div>
+                </div>
+                <div class="floating-order-right">
+                    <button class="floating-order-btn" type="button">
+                        <span>Ver proceso</span> <i class="fa-solid fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -126,85 +155,164 @@
 
         <!-- PANTALLA: CARRITO -->
         <div class="cart-screen" id="cartScreen">
-            <header class="cart-screen-header">
-                <button class="cart-back-btn" type="button" onclick="closeCart()"><i class="fa-solid fa-arrow-left"></i></button>
-                <h3>Mi Carrito</h3>
-            </header>
+            <!-- Fondo oscuro con carritos animados -->
+            <div class="cart-bg-decor cb-1"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div class="cart-bg-decor cb-2"><i class="fa-solid fa-basket-shopping"></i></div>
+            <div class="cart-bg-decor cb-3"><i class="fa-solid fa-bag-shopping"></i></div>
+            <div class="cart-bg-decor cb-4"><i class="fa-solid fa-cart-plus"></i></div>
+            <div class="cart-bg-decor cb-5"><i class="fa-solid fa-cart-shopping"></i></div>
 
-            <div class="cart-items-list" id="cartItemsList"></div>
+            <div class="cart-screen-inner">
+                <!-- Header con frase aleatoria -->
+                <header class="cart-screen-header">
+                    <button class="cart-back-btn" type="button" onclick="closeCart()">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div class="cart-header-center">
+                        <h3>Mi Carrito</h3>
+                        <p class="cart-header-phrase" id="cartHeaderPhrase"></p>
+                    </div>
+                    <div class="cart-header-icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                </header>
 
-            <div class="cart-footer">
-                <div class="cart-footer-notes">
-                    <div class="modifier-group-title">Notas del pedido</div>
-                    <textarea class="notes-textarea" id="orderGeneralNotes" placeholder="Notas generales para toda la orden..."></textarea>
+                <!-- Lista de productos -->
+                <div class="cart-items-list" id="cartItemsList"></div>
+
+                <!-- Footer del carrito -->
+                <div class="cart-footer">
+                    <div class="cart-footer-notes">
+                        <div class="modifier-group-title">
+                            <i class="fa-solid fa-pencil"></i> Notas del pedido
+                        </div>
+                        <textarea class="notes-textarea" id="orderGeneralNotes" placeholder="Ej: Sin gluten, alergia a nueces..."></textarea>
+                    </div>
+                    <div class="cart-total-row">
+                        <div class="cart-total-label-group">
+                            <span class="cart-total-label">Total a pagar</span>
+                            <span class="cart-total-sublabel">Impuestos incluidos</span>
+                        </div>
+                        <span class="cart-total-value" id="cartTotal">$0.00</span>
+                    </div>
+                    <button class="btn-cart-confirm" type="button" onclick="confirmOrder()" id="btnConfirmarPedido">
+                        <i class="fa-solid fa-circle-check"></i>
+                        Confirmar pedido
+                    </button>
                 </div>
-                <div class="cart-total-row">
-                    <span class="cart-total-label">Total a pagar</span>
-                    <span class="cart-total-value" id="cartTotal">$0.00</span>
-                </div>
-                <button class="btn-kfc-primary" type="button" onclick="confirmOrder()" id="btnConfirmarPedido">
-                    Confirmar pedido <i class="fa-solid fa-circle-check"></i>
-                </button>
             </div>
         </div>
 
         <!-- PANTALLA: SEGUIMIENTO -->
         <div class="tracking-screen" id="trackingScreen">
-            <div class="success-icon-wrapper">
-                <i class="fa-solid fa-check"></i>
-            </div>
-            <h2 class="tracking-title">¡Pedido Enviado!</h2>
-            <p class="tracking-desc">Tu pedido ha sido recibido correctamente en la cocina de Mr.Giova.</p>
+            <!-- Fondo animado con partículas decorativas -->
+            <div class="tracking-bg-decor decor-1"></div>
+            <div class="tracking-bg-decor decor-2"></div>
+            <div class="tracking-bg-decor decor-3"></div>
 
-            <div class="tracking-order-box">
-                <div class="tracking-order-num-label">Número de pedido</div>
-                <div class="tracking-order-num" id="trackingOrderNum">#----</div>
-                <div class="tracking-meta">
-                    <div>
-                        <div class="tracking-meta-label">Tiempo estimado</div>
-                        <div class="tracking-meta-value" id="trackingTime">15 - 20 min</div>
+            <div class="tracking-container">
+                <!-- Encabezado del pedido -->
+                <div class="tracking-header-section">
+                    <div class="tracking-check-ring">
+                        <div class="tracking-check-inner">
+                            <i class="fa-solid fa-check" id="trackingCheckIcon"></i>
+                        </div>
                     </div>
-                    <div>
-                        <div class="tracking-meta-label">Mesa</div>
-                        <div class="tracking-meta-value">{{ $mesa->numero_mesa }}</div>
-                    </div>
+                    <h2 class="tracking-title">¡Pedido Enviado!</h2>
+                    <p class="tracking-desc">Tu pedido ha sido recibido en cocina. Sigue aquí su progreso en tiempo real.</p>
                 </div>
-            </div>
 
-            <div class="tracking-status-flow">
-                <div class="tracking-step" id="step-Nuevo">
-                    <div class="step-dot"><i class="fa-solid fa-receipt"></i></div>
-                    <div class="step-info">
-                        <h4>Pedido recibido</h4>
-                        <p>Esperando confirmación en cocina</p>
+                <!-- Card de información del pedido -->
+                <div class="tracking-order-card">
+                    <div class="tracking-order-card-left">
+                        <div class="tracking-order-num-label">N° Pedido</div>
+                        <div class="tracking-order-num" id="trackingOrderNum">#----</div>
+                    </div>
+                    <div class="tracking-order-card-divider"></div>
+                    <div class="tracking-order-card-right">
+                        <div class="tracking-order-meta-item">
+                            <i class="fa-solid fa-clock"></i>
+                            <div>
+                                <div class="tracking-meta-label">Tiempo estimado</div>
+                                <div class="tracking-meta-value" id="trackingTime">15–20 min</div>
+                            </div>
+                        </div>
+                        <div class="tracking-order-meta-item">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                            <div>
+                                <div class="tracking-meta-label">Mesa</div>
+                                <div class="tracking-meta-value">{{ $mesa->numero_mesa }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="tracking-step" id="step-En_Preparacion">
-                    <div class="step-dot"><i class="fa-solid fa-fire-burner"></i></div>
-                    <div class="step-info">
-                        <h4>En preparación</h4>
-                        <p>El chef está cocinando tu platillo</p>
-                    </div>
-                </div>
-                <div class="tracking-step" id="step-Listo">
-                    <div class="step-dot"><i class="fa-solid fa-bell"></i></div>
-                    <div class="step-info">
-                        <h4>¡Listo para servir!</h4>
-                        <p>Tu comida está lista para la mesa</p>
-                    </div>
-                </div>
-                <div class="tracking-step" id="step-Entregado">
-                    <div class="step-dot"><i class="fa-solid fa-square-check"></i></div>
-                    <div class="step-info">
-                        <h4>Entregado</h4>
-                        <p>¡Buen provecho!</p>
-                    </div>
-                </div>
-            </div>
 
-            <button class="btn-kfc-secondary" type="button" style="margin-top: 24px; max-width: 400px;" onclick="resetToMenu()">
-                Volver al menú
-            </button>
+                <!-- Barra de progreso de estado -->
+                <div class="tracking-progress-wrapper">
+                    <div class="tracking-progress-label">Estado del pedido</div>
+                    <div class="tracking-progress-bar-bg">
+                        <div class="tracking-progress-bar-fill" id="trackingProgressFill"></div>
+                    </div>
+                </div>
+
+                <!-- Steps verticales elegantes -->
+                <div class="tracking-steps-list">
+                    <div class="tracking-step" id="step-Nuevo">
+                        <div class="step-connector-line"></div>
+                        <div class="step-dot">
+                            <i class="fa-solid fa-receipt"></i>
+                            <span class="step-done-check"><i class="fa-solid fa-check"></i></span>
+                        </div>
+                        <div class="step-info">
+                            <h4>Pedido recibido</h4>
+                            <p>Esperando confirmación en cocina</p>
+                        </div>
+                        <span class="step-status-chip"></span>
+                    </div>
+
+                    <div class="tracking-step" id="step-En_Preparacion">
+                        <div class="step-connector-line"></div>
+                        <div class="step-dot">
+                            <i class="fa-solid fa-fire-burner"></i>
+                            <span class="step-done-check"><i class="fa-solid fa-check"></i></span>
+                        </div>
+                        <div class="step-info">
+                            <h4>En preparación</h4>
+                            <p>El chef está cocinando tu platillo</p>
+                        </div>
+                        <span class="step-status-chip"></span>
+                    </div>
+
+                    <div class="tracking-step" id="step-Listo">
+                        <div class="step-connector-line"></div>
+                        <div class="step-dot">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="step-done-check"><i class="fa-solid fa-check"></i></span>
+                        </div>
+                        <div class="step-info">
+                            <h4>¡Listo para servir!</h4>
+                            <p>Tu comida está lista para la mesa</p>
+                        </div>
+                        <span class="step-status-chip"></span>
+                    </div>
+
+                    <div class="tracking-step last" id="step-Entregado">
+                        <div class="step-dot">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span class="step-done-check"><i class="fa-solid fa-check"></i></span>
+                        </div>
+                        <div class="step-info">
+                            <h4>Entregado</h4>
+                            <p>¡Buen provecho, disfruta tu comida!</p>
+                        </div>
+                        <span class="step-status-chip"></span>
+                    </div>
+                </div>
+
+                <button class="tracking-back-btn" type="button" onclick="returnToMenuFromTracking()">
+                    <i class="fa-solid fa-arrow-left"></i> Volver al menú
+                </button>
+            </div>
         </div>
     </div>
 
@@ -218,11 +326,79 @@
         let cart = [];
         let currentModalProduct = null;
         let currentOrderTrackingId = null;
+        let currentOrderTrackingTime = '15 - 20 min';
         let trackingInterval = null;
+        let hasPlayedReadySound = false;
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        document.addEventListener('click', initAudioContext, { once: false });
+
+        function playReadyNotificationSound() {
+            try {
+                initAudioContext();
+                if (!audioCtx) return;
+
+                const now = audioCtx.currentTime;
+                // Chime armónico: C5 (523.25 Hz) -> E5 (659.25 Hz) -> G5 (783.99 Hz) -> C6 (1046.50 Hz)
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.12);
+
+                    gain.gain.setValueAtTime(0, now + index * 0.12);
+                    gain.gain.linearRampToValueAtTime(0.35, now + index * 0.12 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.12 + 0.5);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(now + index * 0.12);
+                    osc.stop(now + index * 0.12 + 0.5);
+                });
+            } catch (e) {
+                console.error('Error al reproducir notificación sonora:', e);
+            }
+        }
+
+        const categoryPhrases = {
+            'all': '"La buena comida es el fundamento de la verdadera felicidad."',
+            'hamburguesa': '"La vida es demasiado corta para no comerse una buena hamburguesa."',
+            'bebida': '"Refresca tu día con nuestra mejor selección de bebidas."',
+            'postre': '"Siempre hay espacio para un postre delicioso."',
+            'acompañamiento': '"El complemento perfecto para una comida inolvidable."',
+            'taco': '"Un buen taco es como un abrazo para el alma."'
+        };
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchMenu();
             checkExistingTracking();
+            
+            try {
+                const savedCart = localStorage.getItem('mrgiova_cart');
+                if (savedCart) {
+                    cart = JSON.parse(savedCart);
+                    updateFloatingCart();
+                }
+            } catch (e) {
+                console.error('Error loading cart', e);
+            }
+            
+            const phrases = Object.values(categoryPhrases);
+            const titleEl = document.querySelector('.menu-hero-content h3');
+            if (titleEl) {
+                titleEl.textContent = phrases[Math.floor(Math.random() * phrases.length)];
+            }
         });
 
         function fetchMenu() {
@@ -280,6 +456,29 @@
             document.querySelectorAll('.category-chip').forEach(el => el.classList.remove('active'));
             document.getElementById(`chip-${catId}`).classList.add('active');
             renderMenu(document.getElementById('searchInput').value);
+
+            let catName = 'all';
+            if (catId !== 'all') {
+                const catObj = categories.find(c => c.id == catId);
+                if (catObj) catName = catObj.nombre.toLowerCase();
+            }
+            
+            let newPhrase = categoryPhrases['all'];
+            for (const [key, phrase] of Object.entries(categoryPhrases)) {
+                if (catName.includes(key)) {
+                    newPhrase = phrase;
+                    break;
+                }
+            }
+            
+            const titleEl = document.querySelector('.menu-hero-content h3');
+            if (titleEl) {
+                titleEl.style.opacity = 0;
+                setTimeout(() => {
+                    titleEl.textContent = newPhrase;
+                    titleEl.style.opacity = 1;
+                }, 300);
+            }
         }
 
         function renderMenu(searchTerm = '') {
@@ -320,12 +519,13 @@
                 const grid = document.createElement('div');
                 grid.className = 'menu-products-grid';
 
-                cat.productos.forEach(prod => {
+                cat.productos.forEach((prod, index) => {
                     const priceFormatted = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(prod.precio);
                     const img = prod.imagen_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd';
 
                     const card = document.createElement('div');
                     card.className = 'product-card';
+                    card.style.animationDelay = `${index * 0.05}s`;
                     card.onclick = () => openProductModal(prod);
                     card.innerHTML = `
                         <div class="product-card-img-wrap">
@@ -429,7 +629,16 @@
                 });
             }
 
+            saveCart();
             updateFloatingCart();
+            
+            const cartIcon = document.querySelector('.floating-cart-icon');
+            if(cartIcon) {
+                cartIcon.classList.remove('animate-pop');
+                void cartIcon.offsetWidth;
+                cartIcon.classList.add('animate-pop');
+            }
+
             closeProductModal();
             showToast(`¡Agregado: ${qty}x ${currentModalProduct.nombre}!`);
         }
@@ -459,10 +668,26 @@
             headerBadge.style.display = 'flex';
         }
 
+        const cartPhrases = [
+            '"La buena comida vale cada centavo invertido."',
+            '"Comer bien es la mejor inversión del día."',
+            '"El precio de la felicidad: una buena comida."',
+            '"Gastar en comida no es gasto, es una experiencia."',
+            '"El dinero bien gastado sabe a comida deliciosa."',
+            '"La mejor economía: comer lo que te gusta."',
+            '"No pongas precio al buen sabor, ponle amor."',
+            '"Invertir en un buen plato siempre da retorno."',
+        ];
+
         function openCart() {
             document.getElementById('cartScreen').classList.add('open');
             document.body.style.overflow = 'hidden';
             renderCartItems();
+
+            const phraseEl = document.getElementById('cartHeaderPhrase');
+            if (phraseEl) {
+                phraseEl.textContent = cartPhrases[Math.floor(Math.random() * cartPhrases.length)];
+            }
         }
 
         function closeCart() {
@@ -515,8 +740,13 @@
 
         function deleteCartItem(index) {
             cart.splice(index, 1);
+            saveCart();
             renderCartItems();
             updateFloatingCart();
+        }
+
+        function saveCart() {
+            localStorage.setItem('mrgiova_cart', JSON.stringify(cart));
         }
 
         function confirmOrder() {
@@ -548,11 +778,11 @@
             .then(data => {
                 if (data.success) {
                     cart = [];
+                    saveCart();
                     updateFloatingCart();
                     closeCart();
-                    showTracking(data.pedido_id, data.tiempo_estimado);
-                    localStorage.setItem('mrgiova_tracking_id', data.pedido_id);
-                    localStorage.setItem('mrgiova_tracking_time', data.tiempo_estimado);
+                    startOrderTracking(data.pedido_id, data.tiempo_estimado);
+                    openActiveOrderTracking();
                 } else {
                     alert('Error: ' + (data.error || 'No se pudo enviar el pedido.'));
                     btn.disabled = false;
@@ -567,24 +797,58 @@
             });
         }
 
-        function showTracking(pedidoId, tiempoEstimado) {
+        function startOrderTracking(pedidoId, tiempoEstimado) {
             currentOrderTrackingId = pedidoId;
-            document.getElementById('menuScreen').style.display = 'none';
-            document.getElementById('floatingCart').style.display = 'none';
-            document.getElementById('trackingScreen').style.display = 'flex';
-            document.getElementById('trackingOrderNum').textContent = `#${pedidoId}`;
-            document.getElementById('trackingTime').textContent = tiempoEstimado || '15 - 20 min';
-            document.body.style.overflow = 'hidden';
+            currentOrderTrackingTime = tiempoEstimado || '15 - 20 min';
+            hasPlayedReadySound = false;
+
+            localStorage.setItem('mrgiova_tracking_id', pedidoId);
+            localStorage.setItem('mrgiova_tracking_time', currentOrderTrackingTime);
+
+            const orderBar = document.getElementById('floatingOrderBar');
+            if (orderBar) orderBar.style.display = 'flex';
+
+            updateFloatingCart();
 
             pollOrderStatus();
             if (trackingInterval) clearInterval(trackingInterval);
             trackingInterval = setInterval(pollOrderStatus, 3000);
         }
 
+        function openActiveOrderTracking() {
+            if (!currentOrderTrackingId) return;
+
+            document.getElementById('menuScreen').style.display = 'none';
+            document.getElementById('floatingCart').style.display = 'none';
+            const orderBar = document.getElementById('floatingOrderBar');
+            if (orderBar) orderBar.style.display = 'none';
+
+            document.getElementById('trackingScreen').style.display = 'flex';
+            document.getElementById('trackingOrderNum').textContent = `#${currentOrderTrackingId}`;
+            document.getElementById('trackingTime').textContent = currentOrderTrackingTime;
+            document.body.style.overflow = 'hidden';
+
+            pollOrderStatus();
+        }
+
+        function returnToMenuFromTracking() {
+            document.getElementById('trackingScreen').style.display = 'none';
+            document.getElementById('menuScreen').style.display = 'block';
+            document.body.style.overflow = '';
+
+            const orderBar = document.getElementById('floatingOrderBar');
+            if (orderBar && currentOrderTrackingId) {
+                orderBar.style.display = 'flex';
+            }
+            updateFloatingCart();
+        }
+
         function checkExistingTracking() {
             const savedId = localStorage.getItem('mrgiova_tracking_id');
             const savedTime = localStorage.getItem('mrgiova_tracking_time');
-            if (savedId) showTracking(parseInt(savedId), savedTime);
+            if (savedId) {
+                startOrderTracking(parseInt(savedId), savedTime);
+            }
         }
 
         function pollOrderStatus() {
@@ -593,33 +857,107 @@
             fetch(`/api/pedidos/${currentOrderTrackingId}`)
                 .then(res => res.json())
                 .then(order => {
-                    if (order.error) { resetToMenu(); return; }
+                    if (order.error) {
+                        clearTrackingSession();
+                        return;
+                    }
 
                     const steps = ['Nuevo', 'En_Preparacion', 'Listo', 'Entregado'];
                     const currentStepIndex = steps.indexOf(order.estado);
 
+                    // Porcentaje de barra de progreso
+                    const progressMap = { 'Nuevo': 10, 'En_Preparacion': 45, 'Listo': 75, 'Entregado': 100 };
+                    const progressFill = document.getElementById('trackingProgressFill');
+                    if (progressFill) {
+                        progressFill.style.width = (progressMap[order.estado] || 10) + '%';
+                    }
+
+                    const chipLabels = {
+                        'Nuevo': 'Pendiente',
+                        'En_Preparacion': 'Cocinando',
+                        'Listo': '¡Listo!',
+                        'Entregado': 'Entregado'
+                    };
+
                     steps.forEach((step, idx) => {
                         const stepEl = document.getElementById(`step-${step}`);
-                        stepEl.classList.remove('active', 'completed');
-                        if (idx < currentStepIndex) stepEl.classList.add('completed');
-                        else if (idx === currentStepIndex) stepEl.classList.add('active');
+                        if (stepEl) {
+                            stepEl.classList.remove('active', 'completed');
+                            const chip = stepEl.querySelector('.step-status-chip');
+                            if (idx < currentStepIndex) {
+                                stepEl.classList.add('completed');
+                                if (chip) { chip.textContent = 'Completado'; chip.dataset.state = 'done'; }
+                            } else if (idx === currentStepIndex) {
+                                stepEl.classList.add('active');
+                                if (chip) { chip.textContent = chipLabels[step] || 'En curso'; chip.dataset.state = 'active'; }
+                            } else {
+                                if (chip) { chip.textContent = ''; chip.dataset.state = ''; }
+                            }
+                        }
                     });
 
+                    const orderBar = document.getElementById('floatingOrderBar');
+                    const orderTitle = document.getElementById('floatingOrderTitle');
+                    const orderSubtitle = document.getElementById('floatingOrderSubtitle');
+                    const orderIcon = document.getElementById('floatingOrderIcon');
+
+                    const statusMap = {
+                        'Nuevo': 'Pedido recibido',
+                        'En_Preparacion': 'En preparación',
+                        'Listo': '¡Listo para servir!',
+                        'Entregado': 'Entregado'
+                    };
+                    const estadoText = statusMap[order.estado] || order.estado;
+
+                    if (orderBar && document.getElementById('trackingScreen').style.display !== 'flex') {
+                        orderBar.style.display = 'flex';
+
+                        if (order.estado === 'Listo') {
+                            orderBar.classList.add('is-ready');
+                            if (orderTitle) orderTitle.textContent = '¡Tu pedido está listo!';
+                            if (orderSubtitle) orderSubtitle.textContent = '🔔 Listo para servir a la mesa';
+                            if (orderIcon) orderIcon.innerHTML = `<i class="fa-solid fa-bell"></i>`;
+
+                            if (!hasPlayedReadySound) {
+                                hasPlayedReadySound = true;
+                                playReadyNotificationSound();
+                                showToast('🔔 ¡Tu pedido está listo para servir!');
+                            }
+                        } else {
+                            orderBar.classList.remove('is-ready');
+                            if (orderTitle) orderTitle.textContent = 'Ver el proceso de mi pedido';
+                            if (orderSubtitle) orderSubtitle.textContent = `#${order.id} • ${estadoText}`;
+                            if (orderIcon) orderIcon.innerHTML = `<i class="fa-solid fa-fire-burner"></i>`;
+                        }
+                    }
+
                     if (order.estado === 'Entregado' || order.estado === 'Cancelado') {
-                        clearInterval(trackingInterval);
-                        localStorage.removeItem('mrgiova_tracking_id');
-                        localStorage.removeItem('mrgiova_tracking_time');
+                        setTimeout(() => {
+                            if (currentOrderTrackingId === order.id) {
+                                clearTrackingSession();
+                            }
+                        }, 6000);
                     }
                 })
                 .catch(err => console.error("Error al consultar estado del pedido", err));
         }
 
-        function resetToMenu() {
+        function clearTrackingSession() {
             if (trackingInterval) clearInterval(trackingInterval);
+            trackingInterval = null;
             currentOrderTrackingId = null;
+            hasPlayedReadySound = false;
+
             localStorage.removeItem('mrgiova_tracking_id');
             localStorage.removeItem('mrgiova_tracking_time');
 
+            const orderBar = document.getElementById('floatingOrderBar');
+            if (orderBar) {
+                orderBar.style.display = 'none';
+                orderBar.classList.remove('is-ready');
+            }
+
+            document.body.classList.remove('has-active-order');
             document.getElementById('trackingScreen').style.display = 'none';
             document.getElementById('menuScreen').style.display = 'block';
             document.body.style.overflow = '';
