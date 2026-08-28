@@ -736,30 +736,63 @@
         </div>
         <div class="modal-body">
             <form id="formStaff" onsubmit="submitStaff(event)">
-                <div class="form-group">
-                    <label for="staffNombre">Nombres Completos *</label>
-                    <input type="text" id="staffNombre" class="form-control" required placeholder="Ej: Juan Pérez Rodríguez">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="staffNombre">Nombres *</label>
+                        <input type="text" id="staffNombre" class="form-control" required placeholder="Ej: Juan">
+                    </div>
+                    <div class="form-group">
+                        <label for="staffApellidos">Apellidos *</label>
+                        <input type="text" id="staffApellidos" class="form-control" required placeholder="Ej: Pérez Rodríguez">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="staffCargo">Cargo *</label>
-                    <select id="staffCargo" class="form-control" required>
-                        <option value="">— Seleccionar —</option>
-                        <option>Chef Ejecutivo</option>
-                        <option>Sous Chef</option>
-                        <option>Sommelier</option>
-                        <option>Maître D'</option>
-                        <option>Mesero</option>
-                        <option>Cajero</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="staffIdentificacion">Identificación *</label>
+                        <input type="text" id="staffIdentificacion" class="form-control" required placeholder="Ej: 123456789">
+                    </div>
+                    <div class="form-group">
+                        <label for="staffEmail">Correo Electrónico *</label>
+                        <input type="email" id="staffEmail" class="form-control" required placeholder="juan@mrgiova.com">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="staffRol">Rol del sistema *</label>
-                    <select id="staffRol" class="form-control" required>
-                        <option value="">— Seleccionar —</option>
-                        <option value="Cocinero">Cocinero</option>
-                        <option value="Cajero">Cajero</option>
-                        <option value="Administrador">Administrador</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="staffSueldo">Sueldo Base *</label>
+                        <input type="number" step="0.01" min="0" id="staffSueldo" class="form-control" required placeholder="Ej: 1500000">
+                    </div>
+                    <div class="form-group">
+                        <label for="staffTurno">Turno *</label>
+                        <select id="staffTurno" class="form-control" required>
+                            <option value="Rotativo">Rotativo</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noche">Noche</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="staffCargo">Cargo *</label>
+                        <select id="staffCargo" class="form-control" required>
+                            <option value="">— Seleccionar —</option>
+                            <option>Chef Ejecutivo</option>
+                            <option>Sous Chef</option>
+                            <option>Sommelier</option>
+                            <option>Maître D'</option>
+                            <option>Mesero</option>
+                            <option>Cajero</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="staffRol">Rol del sistema *</label>
+                        <select id="staffRol" class="form-control" required>
+                            <option value="">— Seleccionar —</option>
+                            <option value="Cocinero">Cocinero</option>
+                            <option value="Cajero">Cajero</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:8px;">
                     <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalStaff')">Cancelar</button>
