@@ -78,7 +78,7 @@ class PedidoController extends Controller
             $mesa->update(['estado' => 'Ocupada', 'timer_inicio' => now()]);
 
             // Encontrar el cliente asociado a esta mesa o auto-crear uno genérico
-            $emailMesa = "cliente.mesa{$mesa->numero_mesa}@mrgiova.com";
+            $emailMesa = "cliente.mesa{$mesa->numero_mesa}@saborapueblo.com";
             $usuarioMesa = Usuario::where('email', $emailMesa)->first();
             if ($usuarioMesa && $usuarioMesa->cliente) {
                 $clienteId = $usuarioMesa->cliente->id;
@@ -213,7 +213,7 @@ class PedidoController extends Controller
             if ($nuevoEstado === 'En_Preparacion') {
                 $dataUpdate['hora_inicio_preparacion'] = Carbon::now();
                 // Asignar el empleado de cocina si aplica
-                $cocina = Usuario::where('email', 'cocina@mrgiova.com')->first();
+                $cocina = Usuario::where('email', 'cocina@saborapueblo.com')->first();
                 if ($cocina && $cocina->empleado) {
                     $dataUpdate['empleado_id'] = $cocina->empleado->id;
                 }

@@ -1,5 +1,5 @@
-/* Mr.Giova — Menú Cliente (estilo KFC: rojo, amarillo, blanco) */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+/* Sabor a Pueblo — Menú Cliente (estilo Ejecutivo Oscuro & Gastronómico) */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,400&display=swap');
 
 :root {
     --kfc-red: #F5A623;
@@ -12,8 +12,8 @@
     --kfc-gray-400: #8E8EA0;
     --kfc-gray-700: #CCCCDD;
     --kfc-black: #E8E8F0;
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'Lora', serif;
+    --font-display: 'Playfair Display', 'Cinzel', serif;
+    --font-body: 'Plus Jakarta Sans', 'Lora', serif;
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
@@ -124,7 +124,7 @@ body.menu-page {
     font-weight: 400;
     letter-spacing: 1px;
     line-height: 1;
-    color: var(--kfc-white);
+    color: #ffffff !important;
     white-space: nowrap;
 }
 
@@ -486,6 +486,89 @@ body.menu-page {
     border-bottom: 3px solid var(--kfc-yellow);
     display: inline-block;
     width: 100%;
+}
+
+.menu-category-section {
+    margin-bottom: 28px;
+}
+
+.menu-category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 24px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 3px solid var(--kfc-yellow);
+}
+
+.menu-category-header .menu-section-title {
+    margin: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+    width: auto;
+}
+
+.menu-carousel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.carousel-arrow {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--kfc-gray-200);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 13px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-arrow:hover {
+    background: var(--kfc-red);
+    border-color: var(--kfc-red);
+    transform: scale(1.1);
+}
+
+.carousel-arrow:active {
+    transform: scale(0.95);
+}
+
+.menu-products-horizontal {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 8px 4px 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--kfc-yellow) rgba(255, 255, 255, 0.05);
+}
+
+.menu-products-horizontal::-webkit-scrollbar {
+    height: 6px;
+}
+
+.menu-products-horizontal::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.menu-products-horizontal::-webkit-scrollbar-thumb {
+    background: var(--kfc-yellow);
+    border-radius: 10px;
+}
+
+.menu-products-horizontal .product-card {
+    min-width: 210px;
+    max-width: 240px;
+    width: 220px;
+    flex-shrink: 0;
 }
 
 .menu-products-grid {
@@ -1024,13 +1107,19 @@ body.has-active-order .menu-products {
     padding: 10px 14px;
     font-size: 13px;
     font-family: var(--font-body);
+    color: #ffffff !important;
     outline: none;
     resize: none;
 }
 
 .notes-textarea:focus {
     border-color: var(--kfc-red);
-    background: var(--kfc-white);
+    background: #1e2232;
+    color: #ffffff !important;
+}
+
+.notes-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .quantity-control-wrapper {
@@ -1435,13 +1524,19 @@ body.has-active-order .menu-products {
 .cart-footer-notes .notes-textarea {
     height: 54px;
     margin-bottom: 0;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #E2E8F0;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #ffffff !important;
+}
+
+.cart-footer-notes .notes-textarea:focus {
+    background: rgba(255,255,255,0.12);
+    border-color: var(--kfc-yellow);
+    color: #ffffff !important;
 }
 
 .cart-footer-notes .notes-textarea::placeholder {
-    color: #475569;
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .cart-total-row {
@@ -2037,4 +2132,39 @@ body.has-active-order .menu-products {
         padding: 10px 14px;
         font-size: 11px;
     }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DETALLES GASTRONÓMICOS Y ANIMACIONES (Platos Estrella & Iconos Flotantes)
+───────────────────────────────────────────────────────────────────────────── */
+.badge-parrilla-gold {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(212, 155, 0, 0.15));
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    color: #FFD54F;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.25);
+    animation: gold-shimmer-pulse 2s infinite alternate;
+}
+
+@keyframes gold-shimmer-pulse {
+    0% { border-color: rgba(255, 193, 7, 0.4); box-shadow: 0 0 8px rgba(255, 193, 7, 0.2); }
+    100% { border-color: rgba(255, 213, 79, 0.8); box-shadow: 0 0 16px rgba(255, 213, 79, 0.5); }
+}
+
+.floating-decor {
+    animation: float-gourmet-icon 4s infinite ease-in-out alternate;
+}
+
+@keyframes float-gourmet-icon {
+    0% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(6deg); }
+    100% { transform: translateY(0) rotate(-4deg); }
 }

@@ -46,8 +46,8 @@ class DatabaseSeeder extends Seeder
         // 2. Usuarios y perfiles asociados
         $userAdmin = Usuario::create([
             'nombres' => 'Don',
-            'apellidos' => 'Giova',
-            'email' => 'admin@mrgiova.com',
+            'apellidos' => 'Pueblo',
+            'email' => 'admin@saborapueblo.com',
             'password' => Hash::make('admin123'),
             'rol_id' => $rolAdmin->id,
             'activo' => true,
@@ -62,7 +62,7 @@ class DatabaseSeeder extends Seeder
         $userCocina = Usuario::create([
             'nombres' => 'Mateo',
             'apellidos' => 'Gómez',
-            'email' => 'cocina@mrgiova.com',
+            'email' => 'cocina@saborapueblo.com',
             'password' => Hash::make('cocina123'),
             'rol_id' => $rolCocina->id,
             'activo' => true,
@@ -77,7 +77,7 @@ class DatabaseSeeder extends Seeder
         $userMesero = Usuario::create([
             'nombres' => 'Carlos',
             'apellidos' => 'Ruiz',
-            'email' => 'mesero@mrgiova.com',
+            'email' => 'mesero@saborapueblo.com',
             'password' => Hash::make('mesero123'),
             'rol_id' => $rolMesero->id,
             'activo' => true,
@@ -121,7 +121,7 @@ class DatabaseSeeder extends Seeder
             $userMesa = Usuario::create([
                 'nombres' => 'Cliente',
                 'apellidos' => 'Mesa ' . $i,
-                'email' => "cliente.mesa{$i}@mrgiova.com",
+                'email' => "cliente.mesa{$i}@saborapueblo.com",
                 'password' => Hash::make("mesa{$i}secret"),
                 'rol_id' => $rolCliente->id,
                 'activo' => true,
@@ -158,19 +158,19 @@ class DatabaseSeeder extends Seeder
         // Hamburguesas
         $p1 = Producto::create([
             'categoria_id' => $catHamb->id,
-            'nombre' => 'Hamburguesa Clásica Mr.Giova',
-            'descripcion' => 'Carne 150g al carbón, lechuga, tomate fresco, cebolla, queso cheddar y salsa especial Mr.Giova.',
+            'nombre' => 'Hamburguesa Clásica Sabor a Pueblo',
+            'descripcion' => 'Carne 150g al carbón, lechuga, tomate fresco, cebolla, queso cheddar y salsa especial Sabor a Pueblo.',
             'precio' => 22900.00,
             'imagen_url' => 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600',
             'disponible' => true,
             'tiempo_preparacion' => 15,
-            'ingredientes' => 'Carne res, Pan brioche, Queso cheddar, Lechuga, Tomate, Cebolla, Salsa Mr.Giova',
+            'ingredientes' => 'Carne res, Pan brioche, Queso cheddar, Lechuga, Tomate, Cebolla, Salsa Sabor a Pueblo',
             'stock' => 15
         ]);
 
         $p2 = Producto::create([
             'categoria_id' => $catHamb->id,
-            'nombre' => 'Hamburguesa BBQ Mr.Giova',
+            'nombre' => 'Hamburguesa BBQ Sabor a Pueblo',
             'descripcion' => 'Carne 150g, tocino ahumado crujiente, doble queso cheddar, cebolla caramelizada y salsa BBQ ahumada.',
             'precio' => 24900.00,
             'imagen_url' => 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&q=80&w=600',
@@ -182,7 +182,7 @@ class DatabaseSeeder extends Seeder
 
         $p3 = Producto::create([
             'categoria_id' => $catHamb->id,
-            'nombre' => 'Hamburguesa Doble Mr.Giova',
+            'nombre' => 'Hamburguesa Doble Sabor a Pueblo',
             'descripcion' => 'Doble carne de 150g (300g total), doble queso cheddar fundido, lechuga, tomate y salsa especial.',
             'precio' => 29900.00,
             'imagen_url' => 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&q=80&w=600',

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Mr.Giova - Panel de Cocina</title>
+    <title>Sabor a Pueblo - Panel de Cocina</title>
     <link rel="stylesheet" href="{{ asset('css/cocina.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -19,9 +19,9 @@
             <div>
                 <div class="kitchen-sidebar-brand">
                     <div class="kitchen-sidebar-logo">
-                        <img src="{{ asset('images/logo.png') }}" alt="Logo Mr.Giova" class="menu-logo" width="48" height="48">
+                        <img src="{{ asset('Imagenes/logo.png') }}" alt="Logo Sabor a Pueblo" class="menu-logo" width="48" height="48">
                         <div>
-                            <h2>Mr.<span>Giova</span></h2>
+                            <h2 style="color:#ffffff;">Sabor<span> a Pueblo</span></h2>
                             <div class="kitchen-sidebar-subtitle">Panel de Cocina</div>
                         </div>
                     </div>
@@ -31,13 +31,7 @@
                         <a href="/cocina"><i class="fa-solid fa-fire-burner"></i> Pedidos activos</a>
                     </li>
                     <li class="kitchen-nav-item">
-                        <a href="/admin?tab=historial"><i class="fa-solid fa-clock-rotate-left"></i> Historial</a>
-                    </li>
-                    <li class="kitchen-nav-item">
                         <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-receipt"></i> Ver menú cliente</a>
-                    </li>
-                    <li class="kitchen-nav-item">
-                        <a href="/admin"><i class="fa-solid fa-chart-line"></i> Dashboard admin</a>
                     </li>
                 </ul>
             </div>
@@ -61,17 +55,16 @@
                     </div>
                 </div>
                 <div class="kitchen-header-actions">
+                    <div class="flame-sizzle-badge">
+                        <i class="fa-solid fa-fire-flame-curved"></i> Fuego al Carbón
+                    </div>
                     <div class="kitchen-live-badge">
                         <span class="kitchen-live-dot"></span>
                         En vivo
                     </div>
-                    <button class="kitchen-sound-btn" type="button" id="soundToggle" onclick="toggleSound()">
-                        <i class="fa-solid fa-volume-high"></i>
-                        <span>Sonido activado</span>
-                    </button>
                     <div class="kitchen-user-badge">
-                        <i class="fa-solid fa-kitchen-set"></i>
-                        <span>Chef Principal</span>
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span>Chef Executive Master</span>
                     </div>
                 </div>
             </header>

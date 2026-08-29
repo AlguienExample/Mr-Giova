@@ -36,22 +36,7 @@ class RoleMiddleware
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'No tienes permisos para esta acción.'], 403);
             }
-            
-            // Redirección suave (Graceful Degradation) para superposición de sesiones en pestañas
-            $roleName = $user->rol ? $user->rol->name : null;
-            $dashboardCorrecto = match($roleName) {
-                'Administrador' => '/admin',
-                'Cocinero'      => '/cocina',
-                'Cajero'        => '/caja',
-                default         => null,
-            };
-
-            if ($dashboardCorrecto) {
-                return redirect($dashboardCorrecto)->with('warning', 'La sesión activa ha cambiado. Has sido redirigido a tu panel actual.');
-            }
-
-            auth()->logout();
-            return redirect('/login')->withErrors(['email' => 'Tu rol actual no tiene permisos para acceder a esta sección.']);
+            abort(403, 'No tienes permisos para acceder a esta sección.');
         }
 
         return $next($request);

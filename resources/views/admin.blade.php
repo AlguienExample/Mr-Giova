@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sabor a Pueblo — Panel Administrativo</title>
-    <meta name="description" content="Panel de administración de Sabor a Pueblo: reservas, inventario, mesas y personal.">
+    <meta name="description" content="Panel de administración de Sabor a Pueblo: ventas, cocina, reservas, inventario, mesas y personal.">
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,6 +15,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body class="admin-page">
+
+<div class="kfc-stripe-top"></div>
 
 <!-- ═══════════════════════════════════════════════════════════
      TOAST CONTAINER (notificaciones visuales)
@@ -27,9 +29,12 @@
          SIDEBAR
     ═══════════════════════════════════════════════════════════ -->
     <aside class="admin-sidebar" role="navigation" aria-label="Menú principal">
-        <div class="admin-sidebar-brand">
-            <h2>Sabor a Pueblo</h2>
-            <div class="subtitle">Panel de Gestión</div>
+        <div class="admin-sidebar-brand" style="display:flex; align-items:center; gap:12px; padding: 24px 20px;">
+            <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+            <div>
+                <h2 style="font-size:20px; color:#ffffff; font-weight:700; line-height:1.1;">Sabor<span style="color:var(--gold);"> a Pueblo</span></h2>
+                <div class="subtitle" style="font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold-dark); margin-top:2px;">Restaurante & Parrilla</div>
+            </div>
         </div>
 
         <ul class="admin-nav">
@@ -63,12 +68,21 @@
                     <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Historial
                 </a>
             </li>
+
+            <div style="height: 1px; background: var(--border); margin: 12px 20px;"></div>
+
+            <li class="admin-nav-item">
+                <a href="/caja"><i class="fa-solid fa-cash-register"></i> Terminal Caja</a>
+            </li>
+            <li class="admin-nav-item">
+                <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-receipt"></i> Menú Cliente</a>
+            </li>
         </ul>
 
         <div class="admin-sidebar-footer">
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="btn-black" style="display:block;text-align:center;width:100%;border:none;cursor:pointer;padding:0;">
+                <button type="submit" class="btn-black" style="display:flex; justify-content:center; align-items:center; width:100%; border:none; cursor:pointer; padding:12px;">
                     <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
                 </button>
             </form>
@@ -83,19 +97,20 @@
         <!-- Header -->
         <header class="admin-header">
             <div class="admin-header-title">
-                <h1 id="pageTitle">
+                <h1 id="pageTitle" style="display:flex; align-items:center; gap:12px;">
                     <span class="title-bar"></span>
                     <span id="pageTitleText">Panel Administrativo</span>
+                    <span class="badge-parrilla-gold" style="font-size:10px;"><i class="fa-solid fa-crown"></i> Executive Management</span>
                 </h1>
                 <div id="pageSubtitle" class="content-subtitle" style="margin-top:4px; margin-left:14px;">
-                    Control general de ventas, inventario y estado del local.
+                    Control general de ventas, inventario, comensales y personal.
                 </div>
             </div>
             <div class="admin-header-actions">
                 <div style="display:flex; align-items:center; gap:12px; border-left:1px solid var(--border); padding-left:20px;">
                     <div style="text-align:right;">
-                        <strong style="display:block; font-size:13px; color:var(--black);">Administrador</strong>
-                        <span style="font-size:11px; color:var(--gray-400);">admin@mrgiova.com</span>
+                        <strong style="display:block; font-size:13px; color:var(--black);"><i class="fa-solid fa-user-shield" style="color:var(--gold);margin-right:4px;"></i> Administrador</strong>
+                        <span style="font-size:11px; color:var(--gray-400);">admin@saborapueblo.com</span>
                     </div>
                     <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); display:flex; align-items:center; justify-content:center; color:var(--white); font-weight:700; font-family:var(--font-serif); font-size:16px;">
                         A
@@ -736,63 +751,30 @@
         </div>
         <div class="modal-body">
             <form id="formStaff" onsubmit="submitStaff(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="staffNombre">Nombres *</label>
-                        <input type="text" id="staffNombre" class="form-control" required placeholder="Ej: Juan">
-                    </div>
-                    <div class="form-group">
-                        <label for="staffApellidos">Apellidos *</label>
-                        <input type="text" id="staffApellidos" class="form-control" required placeholder="Ej: Pérez Rodríguez">
-                    </div>
+                <div class="form-group">
+                    <label for="staffNombre">Nombres Completos *</label>
+                    <input type="text" id="staffNombre" class="form-control" required placeholder="Ej: Juan Pérez Rodríguez">
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="staffIdentificacion">Identificación *</label>
-                        <input type="text" id="staffIdentificacion" class="form-control" required placeholder="Ej: 123456789">
-                    </div>
-                    <div class="form-group">
-                        <label for="staffEmail">Correo Electrónico *</label>
-                        <input type="email" id="staffEmail" class="form-control" required placeholder="juan@mrgiova.com">
-                    </div>
+                <div class="form-group">
+                    <label for="staffCargo">Cargo *</label>
+                    <select id="staffCargo" class="form-control" required>
+                        <option value="">— Seleccionar —</option>
+                        <option>Chef Ejecutivo</option>
+                        <option>Sous Chef</option>
+                        <option>Sommelier</option>
+                        <option>Maître D'</option>
+                        <option>Mesero</option>
+                        <option>Cajero</option>
+                    </select>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="staffSueldo">Sueldo Base *</label>
-                        <input type="number" step="0.01" min="0" id="staffSueldo" class="form-control" required placeholder="Ej: 1500000">
-                    </div>
-                    <div class="form-group">
-                        <label for="staffTurno">Turno *</label>
-                        <select id="staffTurno" class="form-control" required>
-                            <option value="Rotativo">Rotativo</option>
-                            <option value="Mañana">Mañana</option>
-                            <option value="Tarde">Tarde</option>
-                            <option value="Noche">Noche</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="staffCargo">Cargo *</label>
-                        <select id="staffCargo" class="form-control" required>
-                            <option value="">— Seleccionar —</option>
-                            <option>Chef Ejecutivo</option>
-                            <option>Sous Chef</option>
-                            <option>Sommelier</option>
-                            <option>Maître D'</option>
-                            <option>Mesero</option>
-                            <option>Cajero</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="staffRol">Rol del sistema *</label>
-                        <select id="staffRol" class="form-control" required>
-                            <option value="">— Seleccionar —</option>
-                            <option value="Cocinero">Cocinero</option>
-                            <option value="Cajero">Cajero</option>
-                            <option value="Administrador">Administrador</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label for="staffRol">Rol del sistema *</label>
+                    <select id="staffRol" class="form-control" required>
+                        <option value="">— Seleccionar —</option>
+                        <option value="Cocinero">Cocinero</option>
+                        <option value="Cajero">Cajero</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:8px;">
                     <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalStaff')">Cancelar</button>
@@ -880,7 +862,7 @@
         </div>
         <div class="modal-body" style="font-family:var(--font-mono); font-size:13px;">
             <div style="text-align:center; margin-bottom:20px;">
-                <strong style="font-family:var(--font-serif); font-size:22px; display:block;">Mr. Giova</strong>
+                <strong style="font-family:var(--font-serif); font-size:22px; display:block;">Sabor a Pueblo</strong>
                 <span style="font-size:12px; color:var(--gray-600);">Restaurante Elite</span><br>
                 <span id="ticketDate" style="font-size:11px; color:var(--gray-400);"></span>
             </div>

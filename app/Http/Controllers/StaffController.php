@@ -40,7 +40,7 @@ class StaffController extends Controller
             $apellidos = count($parts) > 0 ? implode(' ', $parts) : '';
             
             // Generar email temporal único
-            $email = strtolower($nombres) . rand(100,999) . '@mrgiova.com';
+            $email = strtolower($nombres) . rand(100,999) . '@saborapueblo.com';
 
             // Buscar el rol por nombre (validado ya arriba con exists:roles,name)
             $role = \App\Models\Role::where('name', $request->rol)->firstOrFail();

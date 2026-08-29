@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Mr.Giova - Menú del Cliente</title>
+    <title>Sabor a Pueblo - Menú del Cliente</title>
     <link rel="stylesheet" href="{{ asset('css/menu-client.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -16,9 +16,9 @@
         <header class="menu-header">
             <div class="menu-header-top">
                 <div class="menu-header-brand">
-                    <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop" alt="Mr.Giova" class="menu-header-real-logo">
+                    <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo" class="menu-header-real-logo">
                     <div class="menu-header-title">
-                        <h2>Mr.<span>Giova</span></h2>
+                        <h2>Sabor<span> a Pueblo</span></h2>
                     </div>
                 </div>
                 <div class="menu-header-actions">
@@ -45,13 +45,16 @@
         <div id="menuScreen">  
             <div class="menu-hero">
                 <div class="menu-hero-overlay"></div>
-                <div class="floating-decor float-1"><i class="fa-solid fa-burger"></i></div>
-                <div class="floating-decor float-2"><i class="fa-solid fa-utensils"></i></div>
-                <div class="floating-decor float-3"><i class="fa-solid fa-pizza-slice"></i></div>
-                <div class="floating-decor float-4"><i class="fa-solid fa-wine-glass"></i></div>
+                <div class="floating-decor float-1"><i class="fa-solid fa-drumstick-bite"></i></div>
+                <div class="floating-decor float-2"><i class="fa-solid fa-fire-burner"></i></div>
+                <div class="floating-decor float-3"><i class="fa-solid fa-wine-glass"></i></div>
+                <div class="floating-decor float-4"><i class="fa-solid fa-pepper-hot"></i></div>
                 <div class="menu-hero-content">
+                    <div style="margin-bottom:12px;">
+                        <span class="badge-parrilla-gold"><i class="fa-solid fa-fire-flame-curved"></i> Especialidad en Cortes & Parrilla al Carbón</span>
+                    </div>
                     <h3>"La buena comida es el fundamento de la verdadera felicidad."</h3>
-                    <p>Déjate llevar por los sabores y disfruta de un momento inolvidable en Mr.Giova.</p>
+                    <p>Déjate llevar por los sabores gourmet y disfruta de un momento inolvidable en Sabor a Pueblo.</p>
                 </div>
             </div>
 
@@ -510,42 +513,79 @@
                 return;
             }
 
+            const isAllMode = (activeCategory === 'all' && !searchTerm);
+
             filteredCategories.forEach(cat => {
                 if (cat.productos.length === 0) return;
 
                 const section = document.createElement('div');
-                section.innerHTML = `<h3 class="menu-section-title">${cat.nombre}</h3>`;
+                section.className = 'menu-category-section';
 
-                const grid = document.createElement('div');
-                grid.className = 'menu-products-grid';
-
-                cat.productos.forEach((prod, index) => {
-                    const priceFormatted = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(prod.precio);
-                    const img = prod.imagen_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd';
-
-                    const card = document.createElement('div');
-                    card.className = 'product-card';
-                    card.style.animationDelay = `${index * 0.05}s`;
-                    card.onclick = () => openProductModal(prod);
-                    card.innerHTML = `
-                        <div class="product-card-img-wrap">
-                            <img src="${img}" class="product-card-img" alt="${prod.nombre}" loading="lazy">
-                        </div>
-                        <div class="product-card-body">
-                            <h4 class="product-card-name">${prod.nombre}</h4>
-                            <p class="product-card-desc">${prod.descripcion}</p>
-                            <div class="product-card-footer">
-                                <span class="product-card-price">${priceFormatted}</span>
-                                <button class="product-card-add" type="button" aria-label="Agregar"><i class="fa-solid fa-plus"></i></button>
+                if (isAllMode) {
+                    section.innerHTML = `
+                        <div class="menu-category-header">
+                            <h3 class="menu-section-title">${cat.nombre}</h3>
+                            <div class="menu-carousel-controls">
+                                <button type="button" class="carousel-arrow prev" onclick="scrollCarousel('carousel-${cat.id}', -280)" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button type="button" class="carousel-arrow next" onclick="scrollCarousel('carousel-${cat.id}', 280)" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
                             </div>
                         </div>
                     `;
-                    grid.appendChild(card);
-                });
 
-                section.appendChild(grid);
+                    const horizontalWrap = document.createElement('div');
+                    horizontalWrap.className = 'menu-products-horizontal';
+                    horizontalWrap.id = `carousel-${cat.id}`;
+
+                    cat.productos.forEach((prod, index) => {
+                        horizontalWrap.appendChild(createProductCard(prod, index));
+                    });
+
+                    section.appendChild(horizontalWrap);
+                } else {
+                    section.innerHTML = `<h3 class="menu-section-title">${cat.nombre}</h3>`;
+                    const grid = document.createElement('div');
+                    grid.className = 'menu-products-grid';
+
+                    cat.productos.forEach((prod, index) => {
+                        grid.appendChild(createProductCard(prod, index));
+                    });
+
+                    section.appendChild(grid);
+                }
+
                 wrapper.appendChild(section);
             });
+        }
+
+        function createProductCard(prod, index) {
+            const priceFormatted = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(prod.precio);
+            const img = prod.imagen_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd';
+
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            card.style.animationDelay = `${index * 0.05}s`;
+            card.onclick = () => openProductModal(prod);
+            card.innerHTML = `
+                <div class="product-card-img-wrap">
+                    <img src="${img}" class="product-card-img" alt="${prod.nombre}" loading="lazy">
+                </div>
+                <div class="product-card-body">
+                    <h4 class="product-card-name">${prod.nombre}</h4>
+                    <p class="product-card-desc">${prod.descripcion}</p>
+                    <div class="product-card-footer">
+                        <span class="product-card-price">${priceFormatted}</span>
+                        <button class="product-card-add" type="button" aria-label="Agregar"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function scrollCarousel(containerId, amount) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                el.scrollBy({ left: amount, behavior: 'smooth' });
+            }
         }
 
         function filterProducts() {

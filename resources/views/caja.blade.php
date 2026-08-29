@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Sabor a Pueblo — Terminal de Caja</title>
+    <title>Sabor a Pueblo — Terminal de Caja & POS</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -259,18 +259,22 @@
     </style>
 </head>
 <body class="admin-page">
+<div class="kfc-stripe-top"></div>
 <div id="toastContainerCaja" aria-live="polite" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;"></div>
 <div class="admin-app">
 
     <!-- SIDEBAR -->
     <aside class="admin-sidebar">
-        <div class="admin-sidebar-brand">
-            <h2>Sabor a Pueblo</h2>
-            <div class="subtitle">Terminal de Caja</div>
+        <div class="admin-sidebar-brand" style="display:flex; align-items:center; gap:12px; padding: 24px 20px;">
+            <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+            <div>
+                <h2 style="font-size:20px; color:#ffffff; font-weight:700; line-height:1.1;">Sabor<span style="color:var(--gold);"> a Pueblo</span></h2>
+                <div class="subtitle" style="font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold-dark); margin-top:2px;">Terminal de Caja</div>
+            </div>
         </div>
         <ul class="admin-nav">
             <li class="admin-nav-item active">
-                <a href="#"><i class="fa-solid fa-border-all"></i> Control de Mesas</a>
+                <a href="#"><i class="fa-solid fa-cash-register"></i> Control de Mesas</a>
             </li>
             <li class="admin-nav-item">
                 <a href="/admin"><i class="fa-solid fa-chart-line"></i> Panel Admin</a>
@@ -279,7 +283,7 @@
         <div class="admin-sidebar-footer">
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="btn-black" style="display:block;text-align:center;width:100%;border:none;cursor:pointer;padding:0;">
+                <button type="submit" class="btn-black" style="display:flex; justify-content:center; align-items:center; width:100%; border:none; cursor:pointer; padding:12px;">
                     <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
                 </button>
             </form>
@@ -290,17 +294,20 @@
     <main class="admin-main">
         <header class="admin-header">
             <div class="admin-header-title">
-                <h1 style="display:flex;align-items:center;gap:10px;">
+                <h1 style="display:flex;align-items:center;gap:12px;">
                     <div style="width:4px;height:24px;background:var(--gold);border-radius:2px;"></div>
                     <span>Caja &amp; Facturación</span>
+                    <div class="floating-money-container">
+                        <span class="floating-money-bill"><i class="fa-solid fa-money-bill-wave"></i> POS En Vivo</span>
+                    </div>
                 </h1>
-                <div class="content-subtitle" style="margin-top:5px;margin-left:14px;">Gestión de pagos y estado de mesas en tiempo real.</div>
+                <div class="content-subtitle" style="margin-top:5px;margin-left:16px;">Gestión de cobros, recibos térmicos y comandas en tiempo real.</div>
             </div>
             <div class="admin-header-actions" style="display:flex;gap:20px;align-items:center;">
-                <div style="display:flex;gap:20px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
-                    <div><span style="display:inline-block;width:8px;height:8px;background:var(--gray-300);margin-right:6px;border-radius:50%;"></span>Libres: <strong id="count-libres">{{ $libres }}</strong></div>
-                    <div><span style="display:inline-block;width:8px;height:8px;background:var(--gold);margin-right:6px;border-radius:50%;"></span>Ocupadas: <strong id="count-ocupadas">{{ $ocupadas }}</strong></div>
-                    <div><span style="display:inline-block;width:8px;height:8px;background:#4caf50;margin-right:6px;border-radius:50%;"></span>Con pedido hoy: <strong id="count-hoy">{{ $conPedidoHoy }}</strong></div>
+                <div style="display:flex;gap:16px;font-size:11px;text-transform:uppercase;letter-spacing:1px;align-items:center;">
+                    <div><span class="led-dot disponible"></span>Libres: <strong id="count-libres">{{ $libres }}</strong></div>
+                    <div><span class="led-dot ocupada"></span>Ocupadas: <strong id="count-ocupadas">{{ $ocupadas }}</strong></div>
+                    <div><span class="led-dot disponible" style="background:#10B981;"></span>Pedidos Hoy: <strong id="count-hoy">{{ $conPedidoHoy }}</strong></div>
                 </div>
             </div>
         </header>
@@ -383,18 +390,23 @@
                 </div>
 
                 <!-- Panel de Ticket -->
-                <div class="ticket-panel">
+                <div class="ticket-panel thermal-ticket">
                     <div class="empty-ticket" id="panel-empty">
-                        <i class="fa-solid fa-receipt" style="font-size:2.5rem;margin-bottom:15px;opacity:0.25;"></i>
-                        <div style="font-family:var(--font-serif);font-size:18px;margin-bottom:8px;color:var(--gray-600);">Sin selección</div>
-                        <div style="font-size:12px;">Selecciona una mesa para ver los detalles</div>
+                        <i class="fa-solid fa-receipt" style="font-size:2.8rem;margin-bottom:15px;color:var(--gold);opacity:0.4;"></i>
+                        <div style="font-family:var(--font-serif);font-size:18px;margin-bottom:8px;color:var(--gold);">Sin selección</div>
+                        <div style="font-size:12px;color:var(--gray-400);">Selecciona una mesa activa para emitir la pre-cuenta o factura</div>
                     </div>
 
                     <div id="panel-content" style="display:none;flex-direction:column;height:100%;">
+                        <div class="ticket-header-brand">
+                            <div class="ticket-logo-text"><i class="fa-solid fa-receipt"></i> Sabor a Pueblo POS</div>
+                            <div class="ticket-subtext">COMPROBANTE VIRTUAL DE CONSUMO</div>
+                        </div>
+
                         <!-- Header -->
                         <div class="ticket-header">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                                <div style="font-family:var(--font-serif);font-size:18px;" id="pedido-titulo">Mesa --</div>
+                                <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text-main);" id="pedido-titulo">Mesa --</div>
                                 <span class="badge badge-pendiente" id="pedido-estado-badge" style="font-size:9px;">ACTIVO</span>
                             </div>
                             <div style="font-size:11px;color:var(--gray-400);" id="pedido-info">Pedido #---</div>

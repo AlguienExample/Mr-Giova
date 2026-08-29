@@ -4,51 +4,52 @@
  * Paleta: Oro premium + Blanco + Gris oscuro + Neutrales.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&family=Space+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
 /* ─────────────────────────────────────────────────────────────────────────────
    VARIABLES
 ───────────────────────────────────────────────────────────────────────────── */
 :root {
-    --gold:       #B38E5D;
-    --gold-light: #D4AF37;
-    --gold-dark:  #8C6D46;
-    --gold-bg:    rgba(179, 142, 93, 0.08);
-    --gold-line:  rgba(179, 142, 93, 0.25);
+    /* Superficies & Paleta Dark Executive de Mr. Giova */
+    --gold:       #FFC107;            /* Dorado/Ámbar distintivo */
+    --gold-light: #FFD54F;
+    --gold-dark:  #D49B00;
+    --gold-bg:    rgba(255, 193, 7, 0.12);
+    --gold-line:  rgba(255, 193, 7, 0.3);
 
-    --black:      #0F0F0F;
-    --gray-900:   #1A1A1A;
-    --gray-800:   #2C2C2C;
-    --gray-600:   #555555;
-    --gray-400:   #9B9B9B;
-    --gray-300:   #C8C8C8;
-    --gray-200:   #E8E8E8;
-    --gray-100:   #F5F5F5;
-    --gray-50:    #FAFAFA;
-    --white:      #FFFFFF;
+    --black:      #F8FAFC;            /* Texto de alto contraste */
+    --gray-900:   #F8FAFC;            /* Títulos principales */
+    --gray-800:   #E2E8F0;            /* Texto normal */
+    --gray-600:   #94A3B8;            /* Texto atenuado */
+    --gray-400:   #64748B;            /* Subtítulos / Iconos */
+    --gray-300:   #3A4158;            /* Bordes secundarios */
+    --gray-200:   #262B3D;            /* Bordes finos ejecutivos */
+    --gray-100:   #1A1D2B;            /* Fondos de inputs/hovers */
+    --gray-50:    #161924;            /* Fondos de secciones */
+    --white:      #1E2232;            /* Fondo de tarjetas, filas y paneles */
 
     /* Estados */
-    --success:    #2D7A4F;
-    --success-bg: rgba(45, 122, 79, 0.10);
-    --danger:     #C0392B;
-    --danger-bg:  rgba(192, 57, 43, 0.10);
-    --warn:       #C9851F;
-    --warn-bg:    rgba(201, 133, 31, 0.10);
-    --info:       #2563EB;
-    --info-bg:    rgba(37, 99, 235, 0.10);
+    --success:    #10B981;
+    --success-bg: rgba(16, 185, 129, 0.15);
+    --danger:     #EF4444;
+    --danger-bg:  rgba(239, 68, 68, 0.15);
+    --warn:       #F59E0B;
+    --warn-bg:    rgba(245, 158, 11, 0.15);
+    --info:       #3B82F6;
+    --info-bg:    rgba(59, 130, 246, 0.15);
 
     /* Layout */
     --sidebar-w:  260px;
 
     /* Sombras */
-    --shadow-xs:  0 1px 3px rgba(0,0,0,0.06);
-    --shadow-sm:  0 2px 8px rgba(0,0,0,0.07);
-    --shadow-md:  0 6px 24px rgba(0,0,0,0.09);
-    --shadow-lg:  0 16px 48px rgba(0,0,0,0.14);
-    --shadow-xl:  0 24px 64px rgba(0,0,0,0.18);
+    --shadow-xs:  0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-sm:  0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-md:  0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg:  0 16px 48px rgba(0, 0, 0, 0.6);
+    --shadow-xl:  0 24px 64px rgba(0, 0, 0, 0.7);
 
     /* Bordes */
-    --border:     var(--gray-200);
+    --border:     #262B3D;
     --radius-sm:  6px;
     --radius-md:  10px;
     --radius-lg:  16px;
@@ -56,15 +57,23 @@
 
     /* Fonts */
     --font-serif: 'Playfair Display', Georgia, serif;
-    --font-sans:  'Outfit', system-ui, sans-serif;
+    --font-sans:  'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif;
     --font-mono:  'Space Mono', monospace;
 
     /* Bg */
-    --bg-main:    #F2F3F5;
-    --bg-sidebar: var(--white);
+    --bg-main:    #0F1117;
+    --bg-sidebar: #141722;
 
     /* Transiciones */
     --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Franja superior distintiva Mr. Giova */
+.kfc-stripe-top {
+    height: 4px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-dark) 50%, var(--bg-main) 100%);
+    flex-shrink: 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -243,14 +252,14 @@ input, select, textarea { font-family: var(--font-sans); }
    BOTONES
 ───────────────────────────────────────────────────────────────────────────── */
 .btn-black {
-    background: var(--black);
-    color: var(--white);
+    background: #262B3D;
+    color: #F8FAFC;
     padding: 10px 20px;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    border: none;
+    border: 1px solid rgba(255,255,255,0.08);
     cursor: pointer;
     border-radius: var(--radius-sm);
     transition: all var(--transition);
@@ -259,15 +268,15 @@ input, select, textarea { font-family: var(--font-sans); }
     gap: 8px;
     white-space: nowrap;
 }
-.btn-black:hover { background: var(--gray-800); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-black:hover { background: #3A4158; color: #FFC107; transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .btn-black:active { transform: translateY(0); }
 
 .btn-gold {
     background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-    color: var(--white);
+    color: #0F1117;
     padding: 10px 20px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     border: none;
@@ -279,7 +288,7 @@ input, select, textarea { font-family: var(--font-sans); }
     gap: 8px;
     white-space: nowrap;
 }
-.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(179,142,93,0.4); }
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,193,7,0.35); }
 .btn-gold:active { transform: translateY(0); }
 
 .btn-outline {
@@ -296,7 +305,7 @@ input, select, textarea { font-family: var(--font-sans); }
     align-items: center;
     gap: 8px;
 }
-.btn-outline:hover { border-color: var(--gray-400); background: var(--gray-50); }
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); background: var(--gray-100); }
 
 .btn-danger {
     background: var(--danger-bg);
@@ -1003,5 +1012,192 @@ table.haute-table tbody tr:last-child td { border-bottom: none; }
 }
 .pulse {
     animation: pulse 1.8s infinite ease-in-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DETALLES VISUALES Y ANIMACIONES DE CAJA (Billetes, Recibo & Monedas)
+───────────────────────────────────────────────────────────────────────────── */
+
+/* Billetes & Monedas Flotantes Animados en Caja */
+.floating-money-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.floating-money-bill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    animation: float-bill 3s infinite ease-in-out;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.floating-money-bill i {
+    font-size: 13px;
+    animation: cash-spin 4s infinite linear;
+}
+
+@keyframes float-bill {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-5px) rotate(2deg); }
+}
+
+@keyframes cash-spin {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Panel de Recibo Térmico (Ticket POS) */
+.ticket-panel.thermal-ticket {
+    background: #181B26;
+    border: 1px solid var(--border);
+    position: relative;
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+/* Borde troquelado superior tipo ticket de caja */
+.ticket-panel.thermal-ticket::before {
+    content: '';
+    display: block;
+    height: 6px;
+    width: 100%;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--gold) 0px,
+        var(--gold) 8px,
+        transparent 8px,
+        transparent 16px
+    );
+}
+
+.ticket-header-brand {
+    text-align: center;
+    padding: 16px 20px 10px;
+    border-bottom: 1px dashed rgba(255, 193, 7, 0.3);
+}
+
+.ticket-header-brand .ticket-logo-text {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.ticket-header-brand .ticket-subtext {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--gray-400);
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.ticket-body .ticket-item {
+    font-family: var(--font-sans);
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.ticket-item .item-price {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.total-row.gran-total .total-amount {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: #10B981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+/* Botones de Métodos de Pago Animados */
+.payment-methods-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.btn-pay-method {
+    background: var(--gray-100);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.btn-pay-method i {
+    font-size: 18px;
+    color: var(--gold);
+    transition: transform 0.25s;
+}
+
+.btn-pay-method:hover {
+    border-color: var(--gold);
+    background: rgba(255, 193, 7, 0.1);
+    transform: translateY(-2px);
+}
+
+.btn-pay-method:hover i {
+    transform: scale(1.2);
+}
+
+.btn-pay-method.active {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(255, 193, 7, 0.15));
+    border-color: #10B981;
+    color: #F8FAFC;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Indicadores LED de Estado de Mesas */
+.led-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.led-dot.disponible {
+    background: #10B981;
+    box-shadow: 0 0 8px #10B981;
+}
+
+.led-dot.ocupada {
+    background: #FFC107;
+    box-shadow: 0 0 8px #FFC107;
+}
+
+.led-dot.cuenta {
+    background: #EF4444;
+    box-shadow: 0 0 10px #EF4444;
+    animation: pulse 1.2s infinite ease-in-out;
+}
+
+.led-dot.reservada {
+    background: #8B5CF6;
+    box-shadow: 0 0 8px #8B5CF6;
 }
 
