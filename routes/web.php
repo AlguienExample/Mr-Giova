@@ -27,7 +27,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Rutas protegidas por Autenticación y Roles
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'single.session'])->group(function () {
     
     // Panel de Administración: Restringido únicamente a Administradores
     Route::middleware(['role:Administrador'])->group(function () {

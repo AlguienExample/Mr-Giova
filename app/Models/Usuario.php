@@ -19,6 +19,7 @@ class Usuario extends Authenticatable
         'password',
         'rol_id',
         'activo',
+        'session_token',
     ];
 
     protected $hidden = [

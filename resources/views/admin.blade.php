@@ -63,6 +63,11 @@
                     <i class="fa-solid fa-box-archive" aria-hidden="true"></i> Inventario
                 </a>
             </li>
+            <li class="admin-nav-item" id="menu-productos">
+                <a href="#" onclick="switchTab('productos'); return false;" id="nav-productos">
+                    <i class="fa-solid fa-utensils" aria-hidden="true"></i> Productos
+                </a>
+            </li>
             <li class="admin-nav-item" id="menu-pedidos">
                 <a href="#" onclick="switchTab('pedidos'); return false;" id="nav-pedidos">
                     <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Historial
@@ -431,6 +436,80 @@
                         <strong style="display:block; margin-bottom:4px; color:var(--gray-800);">PROTOCOLO DE REPOSICIÓN</strong>
                         Los artículos marcados como <span style="color:var(--danger); font-weight:700;">CRÍTICO</span> requieren reposición inmediata.
                         Usa el botón "Pedido de Reposición" para notificar a proveedores con autorización del gerente.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────
+                 TAB: PRODUCTOS DEL MENÚ
+            ───────────────────────────────────────────────── -->
+            <div id="tab-content-productos" style="display:none;">
+
+                <!-- Cabecera -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:14px;">
+                    <div>
+                        <div style="font-size:10px; color:var(--gold-dark); text-transform:uppercase; letter-spacing:2px; margin-bottom:5px; font-weight:700;">Menú Público</div>
+                        <div class="content-title">Gestión de Productos</div>
+                        <div class="content-subtitle">Los cambios se reflejan automáticamente en el menú del cliente.</div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn-gold" onclick="openModalProducto()" id="btn-add-producto">
+                            <i class="fa-solid fa-plus"></i> Nuevo Producto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI cards -->
+                <div class="dashboard-grid" style="margin-bottom:24px;">
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-utensils"></i> Total Productos</div>
+                        <div class="card-value" id="prod-kpi-total">—</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label" style="color:var(--success,#1e8c45)"><i class="fa-solid fa-circle-check"></i> Disponibles</div>
+                        <div class="card-value" style="color:var(--success,#1e8c45)" id="prod-kpi-disponibles">—</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label" style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> No Disponibles</div>
+                        <div class="card-value" style="color:var(--danger)" id="prod-kpi-nodisponibles">—</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-label"><i class="fa-solid fa-tags"></i> Categorías</div>
+                        <div class="card-value" id="prod-kpi-categorias">—</div>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="inv-toolbar" style="margin-bottom:20px;">
+                    <div class="search-bar" style="width:280px;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="prodSearch" placeholder="Buscar producto..." oninput="filterProductos()">
+                    </div>
+                    <select id="prodCatFilter" class="inv-select" onchange="filterProductos()">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <select id="prodDispFilter" class="inv-select" onchange="filterProductos()">
+                        <option value="">Todos</option>
+                        <option value="1">Disponibles</option>
+                        <option value="0">No Disponibles</option>
+                    </select>
+                </div>
+
+                <!-- Grid de tarjetas de productos -->
+                <div id="productosGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px; margin-bottom:20px;">
+                    <div style="grid-column:1/-1; text-align:center; padding:60px 0; color:var(--gray-400);">
+                        <i class="fa-solid fa-utensils" style="font-size:40px; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                        Cargando productos...
+                    </div>
+                </div>
+
+                <!-- Info nota -->
+                <div style="padding:14px 18px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; align-items:flex-start; gap:12px;">
+                    <i class="fa-solid fa-circle-info" style="color:var(--gold-dark); margin-top:2px; flex-shrink:0;"></i>
+                    <div style="font-size:12px; color:var(--gray-600);">
+                        <strong style="display:block; margin-bottom:4px; color:var(--gray-800);">VISIBILIDAD EN MENÚ</strong>
+                        Solo los productos marcados como <strong>Disponible</strong> y con <strong>stock > 0</strong> aparecen en el menú público del cliente.
+                        Al desactivar un producto o ponerlo en stock 0, desaparece del menú inmediatamente.
                     </div>
                 </div>
             </div>
@@ -909,6 +988,15 @@ function jsonHeaders() {
     return { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() };
 }
 
+/** Wrapper para peticiones fetch con cabeceras JSON por defecto */
+async function apiFetch(url, options = {}) {
+    const headers = jsonHeaders();
+    if (options.headers) {
+        Object.assign(headers, options.headers);
+    }
+    return fetch(url, { ...options, headers });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SISTEMA DE TOASTS (reemplaza alert() por completo)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -967,6 +1055,7 @@ const tabConfig = {
     mesas:      { title: 'Plano de Mesas',        sub: 'Asignación y estado de mesas en tiempo real.',            fn: fetchMesas },
     personal:   { title: 'Gestión de Personal',   sub: 'Administración del equipo Elite.',                        fn: fetchStaff },
     inventario: { title: 'Control de Insumos',    sub: 'Inventario de ingredientes y materias primas.',           fn: fetchInsumos },
+    productos:  { title: 'Productos del Menú',    sub: 'Gestión del catálogo de platos del restaurante.',         fn: fetchProductos },
     pedidos:    { title: 'Historial de Pedidos',  sub: 'Registro de todas las operaciones.',                      fn: fetchHistorial },
 };
 
@@ -2368,7 +2457,429 @@ function exportarPDF() {
     doc.save(filename);
     showToast('✓ PDF exportado', `Archivo: ${filename}`, 'success');
 }
+
+// ══════════════════════════════════════════════════════════
+// GESTIÓN DE PRODUCTOS DEL MENÚ
+// ══════════════════════════════════════════════════════════
+
+let _productos      = [];   // lista completa cargada desde API
+let _categorias     = [];   // lista de categorías
+let _productosFilt  = [];   // lista filtrada
+
+/** Carga productos y categorías al entrar al tab */
+async function fetchProductos() {
+    try {
+        const [resProd, resCat] = await Promise.all([
+            apiFetch('/api/admin/productos'),
+            apiFetch('/api/admin/categorias'),
+        ]);
+        if (resProd.ok && resCat.ok) {
+            _productos  = await resProd.json();
+            _categorias = await resCat.json();
+            _populateCatFilter();
+            _populateCatSelect();
+            filterProductos();
+            _updateProductosKPIs();
+        }
+    } catch (e) {
+        showToast('Error', 'No se pudieron cargar los productos.', 'error');
+    }
+}
+
+/** Rellena el filtro de categoría del toolbar */
+function _populateCatFilter() {
+    const sel = document.getElementById('prodCatFilter');
+    sel.innerHTML = '<option value="">Todas las categorías</option>';
+    _categorias.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.nombre;
+        sel.appendChild(o);
+    });
+}
+
+/** Rellena el select de categoría en el modal */
+function _populateCatSelect() {
+    const sel = document.getElementById('prodCategoria');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    _categorias.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.nombre;
+        sel.appendChild(o);
+    });
+}
+
+/** Actualiza las métricas KPI del tab */
+function _updateProductosKPIs() {
+    const total    = _productos.length;
+    const disp     = _productos.filter(p => p.disponible).length;
+    const noDispo  = total - disp;
+    const cats     = new Set(_productos.map(p => p.categoria_id)).size;
+    document.getElementById('prod-kpi-total').textContent        = total;
+    document.getElementById('prod-kpi-disponibles').textContent  = disp;
+    document.getElementById('prod-kpi-nodisponibles').textContent = noDispo;
+    document.getElementById('prod-kpi-categorias').textContent   = cats;
+}
+
+/** Filtra y re-renderiza la cuadrícula */
+function filterProductos() {
+    const q    = (document.getElementById('prodSearch').value || '').toLowerCase();
+    const cat  = document.getElementById('prodCatFilter').value;
+    const disp = document.getElementById('prodDispFilter').value;
+
+    _productosFilt = _productos.filter(p => {
+        const matchQ   = !q   || p.nombre.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q);
+        const matchCat = !cat || String(p.categoria_id) === cat;
+        const matchD   = disp === '' || String(p.disponible ? 1 : 0) === disp;
+        return matchQ && matchCat && matchD;
+    });
+    _renderProductosGrid();
+}
+
+/** Renderiza las tarjetas */
+function _renderProductosGrid() {
+    const grid = document.getElementById('productosGrid');
+    if (_productosFilt.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--gray-400)">
+            <i class="fa-solid fa-utensils" style="font-size:40px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+            No se encontraron productos con esos filtros.
+        </div>`;
+        return;
+    }
+
+    grid.innerHTML = _productosFilt.map(p => {
+        const cat     = _categorias.find(c => c.id === p.categoria_id);
+        const catName = cat ? cat.nombre : '—';
+        const precio  = parseFloat(p.precio).toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+        const badge   = p.disponible
+            ? `<span style="background:#D4EDDA;color:#155724;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Disponible</span>`
+            : `<span style="background:#F8D7DA;color:#721C24;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> No Disponible</span>`;
+        const img = p.imagen_url
+            ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:100%;height:160px;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+               <div style="width:100%;height:160px;background:var(--gold-bg);display:none;align-items:center;justify-content:center;"><i class="fa-solid fa-image" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`
+            : `<div style="width:100%;height:160px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-utensils" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`;
+        return `<div class="panel-box" style="padding:0;overflow:hidden;display:flex;flex-direction:column;" id="prod-card-${p.id}">
+            <div style="position:relative;overflow:hidden;">
+                ${img}
+                <div style="position:absolute;top:10px;right:10px;">${badge}</div>
+            </div>
+            <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold-dark);font-weight:700;">${catName}</div>
+                <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--black);line-height:1.3;">${p.nombre}</div>
+                ${p.descripcion ? `<div style="font-size:12px;color:var(--gray-400);">${p.descripcion.substring(0,80)}${p.descripcion.length>80?'…':''}</div>` : ''}
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;border-top:1px solid var(--border);">
+                    <span style="font-size:18px;font-weight:800;color:var(--black);">${precio}</span>
+                    <span style="font-size:11px;color:var(--gray-400);">Stock: <strong>${p.stock}</strong></span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button class="btn-outline" style="flex:1;padding:6px 8px;font-size:11px;" onclick="openEditProducto(${p.id})">
+                        <i class="fa-solid fa-pen-to-square"></i> Editar
+                    </button>
+                    <button class="btn-outline" style="padding:6px 10px;font-size:11px;" onclick="toggleDisponible(${p.id})" title="${p.disponible?'Desactivar del menú':'Activar en menú'}">
+                        <i class="fa-solid ${p.disponible?'fa-eye-slash':'fa-eye'}"></i>
+                    </button>
+                    <button class="btn-danger" style="padding:6px 10px;font-size:11px;" onclick="openDeleteProducto(${p.id},'${p.nombre.replace(/'/g,"\\'")}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/** Adapta los campos, placeholders y valores sugeridos según la categoría seleccionada */
+function _onCategoriaModalChange() {
+    const catId = document.getElementById('prodCategoria').value;
+    const cat = _categorias.find(c => String(c.id) === String(catId));
+    const catName = cat ? cat.nombre.toLowerCase() : '';
+
+    const labelNombre = document.getElementById('lblProdNombre');
+    const inputNombre = document.getElementById('prodNombre');
+    const inputDesc   = document.getElementById('prodDescripcion');
+    const inputTiempo = document.getElementById('prodTiempo');
+    const inputIngred = document.getElementById('prodIngredientes');
+    const labelIngred = document.getElementById('lblProdIngredientes');
+    const hintCat     = document.getElementById('prodCatHint');
+
+    if (catName.includes('hamburguesa')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Hamburguesa *';
+        inputNombre.placeholder = 'Ej: Hamburguesa Chipotle Ahumada';
+        inputDesc.placeholder   = 'Carne 150g al carbón, pan brioche, queso cheddar fundido, tocino crujiente y salsa especial...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Carne res, Pan brioche, Queso cheddar, Tocino ahumado, Cebolla caramelizada...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 15;
+        if (hintCat) hintCat.textContent = '🍔 Categoría: Hamburguesas — Detalla tipo de pan, peso de la carne y salsas.';
+    } else if (catName.includes('taco') || catName.includes('quesadilla')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Plato / Tacos *';
+        inputNombre.placeholder = 'Ej: Tacos al Pastor / Quesadilla de Birria';
+        inputDesc.placeholder   = '3 tacos en tortilla de maíz con jugosa carne adobada, piña asada, cebolla morada y cilantro...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Cerdo adobado, Tortillas de maíz, Piña, Cilantro, Cebolla morada, Salsa...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 10;
+        if (hintCat) hintCat.textContent = '🌮 Categoría: Tacos & Quesadillas — Indica número de unidades, tipo de tortilla y salsas.';
+    } else if (catName.includes('bebida') || catName.includes('coctel') || catName.includes('trago')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Bebida / Cóctel *';
+        inputNombre.placeholder = 'Ej: Margarita de Maracuyá / Agua de Horchata';
+        inputDesc.placeholder   = 'Bebida refrescante servida con hielo frappé, fruta natural y escarchado de sal y tajín...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Base del Cóctel';
+        inputIngred.placeholder = 'Tequila blanco, Triple sec, Pulpa de maracuyá, Limón, Sal marina, Tajín...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 3;
+        if (hintCat) hintCat.textContent = '🍹 Categoría: Bebidas — Puedes especificar si contiene alcohol, tamaño o temperatura.';
+    } else if (catName.includes('postre')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Postre *';
+        inputNombre.placeholder = 'Ej: Churros Artesanales con Arequipe';
+        inputDesc.placeholder   = 'Crujientes churros artesanales espolvoreados con azúcar y canela, acompañados de salsa...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Harina de trigo, Azúcar, Canela, Dulce de leche / Arequipe...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 5;
+        if (hintCat) hintCat.textContent = '🍨 Categoría: Postres — Ideal para detallar acompañamientos como bolas de helado o toppings.';
+    } else if (catName.includes('acompaña') || catName.includes('entrada') || catName.includes('papas')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Entrada / Acompañamiento *';
+        inputNombre.placeholder = 'Ej: Papas Mexicanas con Queso / Nachos';
+        inputDesc.placeholder   = 'Gajos de papas crujientes bañados en queso fundido, pico de gallo y jalapeños...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Papas cortadas, Queso cheddar fundido, Pico de gallo, Crema agria, Jalapeños...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 8;
+        if (hintCat) hintCat.textContent = '🍟 Categoría: Acompañamientos — Indica si es porción individual o para compartir.';
+    } else {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Plato *';
+        inputNombre.placeholder = 'Ej: Plato Especial Sabor a Pueblo';
+        inputDesc.placeholder   = 'Descripción del plato, ingredientes principales y presentación...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Ingredientes principales separados por coma...';
+        if (hintCat) hintCat.textContent = '';
+    }
+}
+
+/** Abre modal en modo creación */
+function openModalProducto() {
+    document.getElementById('prodId').value = '';
+    document.getElementById('modalProductoTituloText').textContent = 'Nuevo Producto';
+    document.getElementById('formProducto').reset();
+    document.getElementById('prodDisponible').checked = true;
+    _onCategoriaModalChange();
+    openModal('modalProducto');
+}
+
+/** Abre modal en modo edición */
+function openEditProducto(id) {
+    const p = _productos.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('prodId').value              = p.id;
+    document.getElementById('modalProductoTituloText').textContent = 'Editar Producto';
+    document.getElementById('prodNombre').value          = p.nombre || '';
+    document.getElementById('prodCategoria').value       = p.categoria_id || '';
+    document.getElementById('prodDescripcion').value     = p.descripcion || '';
+    document.getElementById('prodPrecio').value          = p.precio || '';
+    document.getElementById('prodStock').value           = p.stock || 0;
+    document.getElementById('prodTiempo').value          = p.tiempo_preparacion || '';
+    document.getElementById('prodImagenUrl').value       = p.imagen_url || '';
+    document.getElementById('prodIngredientes').value   = p.ingredientes || '';
+    document.getElementById('prodDisponible').checked   = !!p.disponible;
+    _onCategoriaModalChange();
+    openModal('modalProducto');
+}
+
+/** Envía el formulario de crear/editar */
+async function submitProducto(e) {
+    e.preventDefault();
+    const id = document.getElementById('prodId').value;
+    const body = {
+        nombre:             document.getElementById('prodNombre').value.trim(),
+        categoria_id:       parseInt(document.getElementById('prodCategoria').value),
+        descripcion:        document.getElementById('prodDescripcion').value.trim(),
+        precio:             parseFloat(document.getElementById('prodPrecio').value),
+        stock:              parseInt(document.getElementById('prodStock').value),
+        tiempo_preparacion: parseInt(document.getElementById('prodTiempo').value) || null,
+        imagen_url:         document.getElementById('prodImagenUrl').value.trim() || null,
+        ingredientes:       document.getElementById('prodIngredientes').value.trim() || null,
+        disponible:         document.getElementById('prodDisponible').checked,
+    };
+
+    const btn = document.getElementById('btnSubmitProducto');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        const method = id ? 'PUT' : 'POST';
+        const url    = id ? `/api/admin/productos/${id}` : '/api/admin/productos';
+        const res    = await apiFetch(url, { method, body: JSON.stringify(body) });
+        const data   = await res.json();
+        if (res.ok && data.success) {
+            closeModal('modalProducto');
+            showToast('✓ Producto guardado', `"${data.producto.nombre}" actualizado en el menú.`, 'success');
+            await fetchProductos();
+        } else {
+            showToast('Error', data.message || data.error || 'Error al guardar el producto.', 'error');
+        }
+    } catch (err) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Producto';
+    }
+}
+
+/** Activa o desactiva la disponibilidad del producto sin abrir modal */
+async function toggleDisponible(id) {
+    const p = _productos.find(x => x.id === id);
+    if (!p) return;
+    try {
+        const res  = await apiFetch(`/api/admin/productos/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ ...p, disponible: !p.disponible }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const estado = data.producto.disponible ? 'Disponible' : 'No disponible';
+            showToast('✓ Actualizado', `"${p.nombre}" ahora está ${estado} en el menú.`, 'success');
+            await fetchProductos();
+        }
+    } catch (e) {
+        showToast('Error', 'No se pudo cambiar el estado.', 'error');
+    }
+}
+
+/** Abre el modal de confirmación de eliminación */
+function openDeleteProducto(id, nombre) {
+    document.getElementById('eliminarProductoId').value = id;
+    document.getElementById('eliminarProductoNombre').textContent = nombre;
+    openModal('modalEliminarProducto');
+}
+
+/** Confirma y ejecuta la eliminación */
+async function confirmarEliminarProducto() {
+    const id = document.getElementById('eliminarProductoId').value;
+    try {
+        const res  = await apiFetch(`/api/admin/productos/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            closeModal('modalEliminarProducto');
+            showToast('✓ Listo', data.message || 'Producto eliminado.', 'success');
+            await fetchProductos();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar.', 'error');
+        }
+    } catch (e) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    }
+}
+
+// Integrar en el switchTab existente: cargar productos al entrar al tab
+const _origSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+if (_origSwitchTab) {
+    const _sw = switchTab;
+    switchTab = function(tab) {
+        _sw(tab);
+        if (tab === 'productos') fetchProductos();
+    };
+}
 </script>
+
+<!-- ── Modal: Crear / Editar Producto ── -->
+<div class="mrgiova-modal" id="modalProducto" role="dialog" aria-modal="true" aria-labelledby="modalProductoTitulo">
+    <div class="modal-content" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="modalProductoTitulo"><i class="fa-solid fa-utensils" style="color:var(--gold-dark); margin-right:8px;"></i> <span id="modalProductoTituloText">Nuevo Producto</span></h3>
+            <button class="modal-close-btn" onclick="closeModal('modalProducto')" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="formProducto" onsubmit="submitProducto(event)" novalidate>
+                <input type="hidden" id="prodId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="prodCategoria">Categoría *</label>
+                        <select id="prodCategoria" class="form-control" onchange="_onCategoriaModalChange()" required>
+                            <option value="">— Seleccionar —</option>
+                        </select>
+                        <div class="form-error-text" id="err-prodCategoria">Selecciona una categoría.</div>
+                        <div id="prodCatHint" style="font-size:11px; color:var(--gold-dark); margin-top:4px; font-weight:600;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="prodNombre" id="lblProdNombre">Nombre del Plato *</label>
+                        <input type="text" id="prodNombre" class="form-control" placeholder="Ej: Hamburguesa Clásica Sabor a Pueblo" required>
+                        <div class="form-error-text" id="err-prodNombre">El nombre es obligatorio.</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prodDescripcion">Descripción</label>
+                    <textarea id="prodDescripcion" class="form-control" rows="2" placeholder="Descripción del plato, ingredientes principales..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="prodPrecio">Precio (COP) *</label>
+                        <input type="number" id="prodPrecio" class="form-control" min="0" step="0.01" placeholder="0.00" required>
+                        <div class="form-error-text" id="err-prodPrecio">Ingresa un precio válido.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="prodStock">Stock *</label>
+                        <input type="number" id="prodStock" class="form-control" min="0" placeholder="0" required>
+                        <div class="form-error-text" id="err-prodStock">Ingresa el stock disponible.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="prodTiempo">Tiempo Prep. (min)</label>
+                        <input type="number" id="prodTiempo" class="form-control" min="0" placeholder="15">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prodImagenUrl">URL de Imagen</label>
+                    <input type="url" id="prodImagenUrl" class="form-control" placeholder="https://ejemplo.com/imagen.jpg">
+                </div>
+
+                <div class="form-group">
+                    <label for="prodIngredientes" id="lblProdIngredientes">Ingredientes / Alérgenos</label>
+                    <input type="text" id="prodIngredientes" class="form-control" placeholder="Ej: Carne de res, Pan brioche, Queso cheddar...">
+                </div>
+
+                <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                    <label style="margin:0; display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:13px;">
+                        <input type="checkbox" id="prodDisponible" style="width:16px; height:16px; accent-color:var(--gold-dark);" checked>
+                        Disponible en menú público
+                    </label>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalProducto')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;" id="btnSubmitProducto">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Producto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Confirmar Eliminación de Producto ── -->
+<div class="mrgiova-modal" id="modalEliminarProducto" role="dialog" aria-modal="true" aria-labelledby="modalEliminarProductoTitulo">
+    <div class="modal-content" style="max-width:440px;">
+        <div class="modal-header" style="border-bottom:1px solid #FFCDD2;">
+            <h3 id="modalEliminarProductoTitulo" style="color:var(--danger);"><i class="fa-solid fa-trash-can" style="margin-right:8px;"></i> Eliminar Producto</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalEliminarProducto')" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eliminarProductoId">
+            <div style="text-align:center; padding:10px 0 20px;">
+                <i class="fa-solid fa-circle-xmark" style="font-size:40px; color:var(--danger); opacity:0.7; margin-bottom:14px; display:block;"></i>
+                <p style="font-size:14px; color:var(--gray-800); margin-bottom:8px;">
+                    ¿Eliminar el producto <strong id="eliminarProductoNombre" style="color:var(--black);"></strong>?<br>
+                </p>
+                <p style="font-size:12px; color:var(--gray-400);">
+                    Si tiene pedidos asociados, se marcará como no disponible (no se borrará).<br>
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-outline" style="flex:1;" onclick="closeModal('modalEliminarProducto')">Volver</button>
+                <button class="btn-danger" style="flex:2;" onclick="confirmarEliminarProducto()">
+                    <i class="fa-solid fa-trash"></i> Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

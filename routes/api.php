@@ -56,7 +56,12 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::post('/admin/productos',          [\App\Http\Controllers\ProductoController::class, 'store']);
         Route::put('/admin/productos/{id}',      [\App\Http\Controllers\ProductoController::class, 'update']);
         Route::delete('/admin/productos/{id}',   [\App\Http\Controllers\ProductoController::class, 'destroy']);
-        Route::get('/admin/categorias',          [\App\Http\Controllers\ProductoController::class, 'categorias']);
+        
+        // CRUD de Categorías
+        Route::get('/admin/categorias',          [\App\Http\Controllers\CategoriaController::class, 'index']);
+        Route::post('/admin/categorias',         [\App\Http\Controllers\CategoriaController::class, 'store']);
+        Route::put('/admin/categorias/{id}',     [\App\Http\Controllers\CategoriaController::class, 'update']);
+        Route::delete('/admin/categorias/{id}',  [\App\Http\Controllers\CategoriaController::class, 'destroy']);
     });
 
     // Acciones de Cocina (Cocinero y Administrador)

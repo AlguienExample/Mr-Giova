@@ -7,17 +7,31 @@ let currentModalProduct = null;
 let currentOrderTrackingId = null;
 let trackingInterval = null;
 
-// Cargar datos al iniciar
+let _lastMenuHash = '';
+
+// Cargar datos al iniciar y configurar sondeo en tiempo real
 window.addEventListener('DOMContentLoaded', () => {
     fetchMenu();
     checkExistingTracking();
+    
+    // Sondeo periódico cada 12 segundos para reflejar cambios del administrador en tiempo real
+    setInterval(() => {
+        if (!currentModalProduct) {
+            fetchMenu(true);
+        }
+    }, 12000);
 });
 
-// Obtener datos del menú
-function fetchMenu() {
-    fetch('/api/productos')
+// Obtener datos del menú (con soporte de actualización silenciosa)
+function fetchMenu(silent = false) {
+    return fetch('/api/productos')
         .then(res => res.json())
         .then(data => {
+            const dataHash = JSON.stringify(data);
+            if (silent && dataHash === _lastMenuHash) {
+                return; // Sin cambios: no redibujar el DOM
+            }
+            _lastMenuHash = dataHash;
             categories = data;
             // Consolidar todos los productos en un array plano para búsquedas
             allProducts = [];
@@ -29,15 +43,18 @@ function fetchMenu() {
             });
             
             renderCategoryChips();
-            renderMenu();
+            const searchInput = document.getElementById('searchInput');
+            renderMenu(searchInput ? searchInput.value : '');
         })
         .catch(err => {
-            console.error("Error cargando el menú", err);
-            document.getElementById('productsWrapper').innerHTML = 
-                `<div style="text-align:center; padding: 40px; color:#E74C3C;">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:32px; margin-bottom:10px;"></i>
-                    <p>Hubo un problema al cargar el menú. Reintente por favor.</p>
-                </div>`;
+            if (!silent) {
+                console.error("Error cargando el menú", err);
+                document.getElementById('productsWrapper').innerHTML = 
+                    `<div style="text-align:center; padding: 40px; color:#E74C3C;">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:32px; margin-bottom:10px;"></i>
+                        <p>Hubo un problema al cargar el menú. Reintente por favor.</p>
+                    </div>`;
+            }
         });
 }
 

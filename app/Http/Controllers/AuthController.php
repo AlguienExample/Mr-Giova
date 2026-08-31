@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -45,6 +46,11 @@ class AuthController extends Controller
                 ]);
             }
 
+            // Generar un token único para esta sesión (sesión única por usuario)
+            $sessionToken = Str::random(60);
+            $user->update(['session_token' => $sessionToken]);
+            $request->session()->put('session_token', $sessionToken);
+
             return $this->redirectBasedOnRole($user);
         }
 
@@ -58,6 +64,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        // Limpiar el token de sesión en la BD para invalidar cualquier otra sesión activa
+        if ($user = Auth::user()) {
+            $user->update(['session_token' => null]);
+        }
+
         Auth::logout();
 
         $request->session()->invalidate();

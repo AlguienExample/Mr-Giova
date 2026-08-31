@@ -36,9 +36,12 @@
                 </ul>
             </div>
             <div class="kitchen-sidebar-footer">
-                <a href="#" class="kitchen-logout" onclick="alert('Sesión de cocina finalizada'); return false;">
-                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
-                </a>
+                <form method="POST" action="{{ route('logout') }}" style="margin:0;">
+                    @csrf
+                    <button type="submit" class="kitchen-logout" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+                    </button>
+                </form>
             </div>
         </aside>
 
