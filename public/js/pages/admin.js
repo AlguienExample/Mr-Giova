@@ -1,0 +1,1808 @@
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS GLOBALES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Formatea un valor como moneda COP */
+function formatCOP(val) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+}
+
+/** Obtiene el token CSRF del meta tag */
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+/** Headers estándar para peticiones JSON */
+function jsonHeaders() {
+    return { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() };
+}
+
+/** Wrapper para peticiones fetch con cabeceras JSON por defecto */
+async function apiFetch(url, options = {}) {
+    const headers = jsonHeaders();
+    if (options.headers) {
+        Object.assign(headers, options.headers);
+    }
+    return fetch(url, { ...options, headers });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SISTEMA DE TOASTS (reemplaza alert() por completo)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Muestra una notificación toast.
+ * @param {string} title - Título corto
+ * @param {string} message - Mensaje detallado
+ * @param {'success'|'error'|'warning'|'info'} type - Tipo de notificación
+ */
+function showToast(title, message = '', type = 'success') {
+    const icons = {
+        success: 'fa-circle-check',
+        error:   'fa-circle-xmark',
+        warning: 'fa-triangle-exclamation',
+        info:    'fa-circle-info',
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            ${message ? `<div class="toast-message">${message}</div>` : ''}
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+
+    document.getElementById('toastContainer').appendChild(toast);
+
+    // Animar entrada
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
+    // Auto-eliminar tras 4 segundos
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 4500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVEGACIÓN POR TABS
+// ─────────────────────────────────────────────────────────────────────────────
+
+let currentTab = 'dashboard';
+
+const tabConfig = {
+    dashboard:  { title: 'Panel Administrativo', sub: 'Control general de ventas, inventario y estado del local.', fn: fetchStats },
+    reservas:   { title: 'Agenda de Reservas',   sub: 'Gestión de comensales y eventos especiales.',              fn: fetchReservas },
+    mesas:      { title: 'Plano de Mesas',        sub: 'Asignación y estado de mesas en tiempo real.',            fn: fetchMesas },
+    personal:   { title: 'Gestión de Personal',   sub: 'Administración del equipo Elite.',                        fn: fetchStaff },
+    inventario: { title: 'Control de Insumos',    sub: 'Inventario de ingredientes y materias primas.',           fn: fetchInsumos },
+    productos:  { title: 'Productos del Menú',    sub: 'Gestión del catálogo de platos del restaurante.',         fn: fetchProductos },
+    pedidos:    { title: 'Historial de Pedidos',  sub: 'Registro de todas las operaciones.',                      fn: fetchHistorial },
+};
+
+function switchTab(tabName) {
+    currentTab = tabName;
+
+    // Actualizar nav
+    document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`menu-${tabName}`).classList.add('active');
+
+    // Mostrar/ocultar contenido
+    Object.keys(tabConfig).forEach(t => {
+        document.getElementById(`tab-content-${t}`).style.display = 'none';
+    });
+    document.getElementById(`tab-content-${tabName}`).style.display = 'block';
+
+    // Actualizar header
+    const cfg = tabConfig[tabName];
+    document.getElementById('pageTitleText').textContent = cfg.title;
+    document.getElementById('pageSubtitle').textContent  = cfg.sub;
+
+    // Ejecutar función de carga
+    if (cfg.fn) cfg.fn();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODALES
+// ─────────────────────────────────────────────────────────────────────────────
+
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.mrgiova-modal.open').forEach(m => m.classList.remove('open'));
+        document.body.style.overflow = '';
+    }
+});
+
+// Cerrar al hacer click en el fondo oscuro
+document.querySelectorAll('.mrgiova-modal').forEach(modal => {
+    modal.addEventListener('click', e => {
+        if (e.target === modal) {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INICIALIZACIÓN
+// ─────────────────────────────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Cargar dashboard al inicio
+    fetchStats();
+    
+    // Conexión simulada en tiempo real (Event-driven poll cada 7 segundos para platos premium y KPIs)
+    setInterval(() => {
+        fetchStats();
+    }, 7000);
+
+    // Precargar mesas para el selector de reservas
+    fetch('/api/admin/mesas')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('reservaMesa');
+            data.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `Mesa ${m.numero_mesa} (${m.capacidad} pax) — ${m.estado}`;
+                if (m.estado === 'Ocupada') opt.disabled = true;
+                select.appendChild(opt);
+            });
+        })
+        .catch(() => {}); // silencioso
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. DASHBOARD — Estadísticas con sincronización de fecha del dispositivo
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Almacenar meta de semana para exportadores
+let _metaSemana = null;
+let _ventasPorDia = [];
+
+function fetchStats() {
+    // Enviar la fecha LOCAL del dispositivo del administrador para sincronización
+    const d = new Date();
+    const fechaHoyLocal = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const url = `/api/admin/stats?current_date=${fechaHoyLocal}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('kpi-ventas').textContent   = formatCOP(data.kpis.ventas_hoy);
+            document.getElementById('kpi-ticket').textContent   = formatCOP(data.kpis.ticket_promedio);
+
+            const varPct = data.kpis.variacion_ventas;
+            const subtextEl = document.getElementById('kpi-ventas-subtext');
+            if (subtextEl) {
+                if (varPct >= 0) {
+                    subtextEl.innerHTML = `<span style="color:var(--success); font-weight:700;">+${varPct.toFixed(1)}%</span> vs ayer <i class="fa-solid fa-arrow-trend-up" style="color:var(--success)"></i>`;
+                } else {
+                    subtextEl.innerHTML = `<span style="color:var(--danger); font-weight:700;">${varPct.toFixed(1)}%</span> vs ayer <i class="fa-solid fa-arrow-trend-down" style="color:var(--danger)"></i>`;
+                }
+            }
+
+            const pOcup = data.kpis.total_mesas > 0
+                ? Math.round((data.kpis.mesas_activas / data.kpis.total_mesas) * 100)
+                : 0;
+            document.getElementById('kpi-ocupacion').textContent  = pOcup + '%';
+            document.getElementById('kpi-mesas-text').textContent = `${data.kpis.mesas_activas}/${data.kpis.total_mesas} Mesas`;
+            document.getElementById('kpi-alertas').textContent    = data.kpis.alertas_stock.toString().padStart(2, '0');
+
+            // Guardar metadatos para exportadores
+            _metaSemana  = data.meta_semana;
+            _ventasPorDia = data.ventas_por_dia;
+
+            renderSalesChart(data.ventas_por_dia);
+
+            // Platos Premium
+            const ul = document.getElementById('premiumList');
+            ul.innerHTML = '';
+            if (!data.productos_premium || data.productos_premium.length === 0) {
+                ul.innerHTML = '<li><span style="color:var(--gray-400); font-style:italic;">Sin datos de platos premium.</span></li>';
+                return;
+            }
+            data.productos_premium.forEach(p => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${p.nombre}</span> <strong class="text-gold">${p.cantidad} ord.</strong>`;
+                ul.appendChild(li);
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudieron cargar las estadísticas.', 'error'));
+}
+
+let chartInstance = null;
+
+function renderSalesChart(data) {
+    const labels  = data.map(d => d.dia);
+    const values  = data.map(d => d.ventas);
+    const bgColors = data.map(d =>
+        d.es_hoy    ? 'rgba(179, 142, 93, 0.5)'  :
+        d.es_futuro ? 'rgba(200,200,200,0.15)'    :
+                      'rgba(179, 142, 93, 0.12)'
+    );
+    const borderColors = data.map(d =>
+        d.es_hoy    ? 'rgba(179, 142, 93, 1.0)'   :
+        d.es_futuro ? 'rgba(200,200,200,0.4)'      :
+                      'rgba(179, 142, 93, 0.7)'
+    );
+    const ctx = document.getElementById('salesChart').getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.data.labels                 = labels;
+        chartInstance.data.datasets[0].data        = values;
+        chartInstance.data.datasets[0].backgroundColor  = bgColors;
+        chartInstance.data.datasets[0].borderColor      = borderColors;
+        chartInstance.update();
+        return;
+    }
+
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Ventas',
+                data: values,
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.04)' },
+                    ticks: { callback: v => '$' + (v / 1000) + 'k', font: { family: 'Outfit' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Outfit', weight: '500' } }
+                }
+            }
+        }
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchReservas() {
+    const fechaFilter = document.getElementById('filtroFechaReservas');
+    let dateVal = fechaFilter.value;
+
+    // Si no hay fecha, usar HOY del dispositivo del administrador
+    if (!dateVal) {
+        const d = new Date();
+        dateVal = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        fechaFilter.value = dateVal;
+    }
+
+    const url = `/api/admin/reservas?fecha=${dateVal}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('reservasList');
+
+            const header = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-family:var(--font-serif); font-size:20px; color:var(--black);">
+                            Servicio del <span style="color:var(--gold-dark);">${dateVal}</span>
+                        </div>
+                        <div style="font-size:12px; color:var(--gray-400); margin-top:4px;">${data.length} reserva(s)</div>
+                    </div>
+                    <button class="btn-gold" onclick="openModal('modalReserva')" id="btn-nueva-reserva-2">
+                        <i class="fa-solid fa-plus"></i> Nueva Reserva
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = header;
+
+            if (data.length === 0) {
+                container.innerHTML += `
+                    <div class="table-empty" style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius-md); padding:50px;">
+                        <i class="fa-regular fa-calendar-xmark" style="font-size:40px; opacity:0.3; display:block; margin-bottom:12px;"></i>
+                        No hay reservas para esta fecha.
+                    </div>`;
+                return;
+            }
+
+            data.forEach(r => {
+                const vipBadge  = r.is_vip ? `<span class="vip-badge">VIP Elite</span>` : '';
+                const noteHtml  = r.notas  ? `<div class="res-note">"${r.notas}"</div>` : '';
+                const mesaNum   = r.mesa_numero ? r.mesa_numero.toString().padStart(2, '0') : '--';
+
+                let stBadge;
+                if (r.estado === 'Confirmada')  stBadge = `<span class="badge badge-optimo">✓ Confirmada</span>`;
+                else if (r.estado === 'Pendiente') stBadge = `<span class="badge badge-pendiente">Pendiente</span>`;
+                else if (r.estado === 'Cancelada') stBadge = `<span class="badge badge-critico">Cancelada</span>`;
+                else stBadge = `<span class="badge badge-neutral">${r.estado}</span>`;
+
+                // Extraer nombre del cliente desde las notas
+                let clienteDisplay = r.cliente_nombre;
+                const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
+                if (matchNota) clienteDisplay = matchNota[1].trim();
+
+                container.innerHTML += `
+                    <div class="reservation-card">
+                        <div class="res-time">
+                            ${r.hora}
+                            <small>Mesa ${mesaNum}</small>
+                        </div>
+                        <div class="res-details" style="flex:1;">
+                            <div class="res-name">${clienteDisplay} ${vipBadge}</div>
+                            <div class="res-meta">
+                                <span><i class="fa-solid fa-user-group"></i> ${r.num_personas} Comensales</span>
+                                ${stBadge}
+                            </div>
+                            ${noteHtml}
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-left:12px;">
+                            <button class="btn-outline" style="padding:5px 10px; font-size:11px;" onclick="abrirEditarReserva(${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Editar reserva">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn-danger" style="padding:5px 10px; font-size:11px;" onclick="abrirEliminarReserva(${r.id}, '${clienteDisplay.replace(/'/g,"\\'")}'  , '${r.estado}')" title="Eliminar reserva">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudieron cargar las reservas.', 'error'));
+}
+
+/** Envía el formulario de nueva reserva */
+function submitReserva(e) {
+    e.preventDefault();
+
+    // Validación frontend
+    let valid = true;
+    const campos = ['reservaNombre', 'reservaFecha', 'reservaHora', 'reservaPersonas', 'reservaMesa'];
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`err-${id}`);
+        if (!el.value || el.value === '') {
+            el.classList.add('error');
+            if (err) err.classList.add('visible');
+            valid = false;
+        } else {
+            el.classList.remove('error');
+            if (err) err.classList.remove('visible');
+        }
+    });
+
+    if (!valid) {
+        showToast('Formulario incompleto', 'Completa todos los campos obligatorios.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitReserva');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:   document.getElementById('reservaNombre').value.trim(),
+        fecha:    document.getElementById('reservaFecha').value,
+        hora:     document.getElementById('reservaHora').value,
+        personas: parseInt(document.getElementById('reservaPersonas').value),
+        mesa_id:  parseInt(document.getElementById('reservaMesa').value),
+        notas:    document.getElementById('reservaNotas').value.trim(),
+    };
+
+    fetch('/api/admin/reservas', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Reserva confirmada', `Mesa asignada para ${payload.nombre} el ${payload.fecha} a las ${payload.hora}.`, 'success');
+            closeModal('modalReserva');
+            document.getElementById('formReserva').reset();
+
+            // Actualizar lista si la fecha coincide
+            const currentFilter = document.getElementById('filtroFechaReservas').value;
+            if (!currentFilter || currentFilter === payload.fecha) {
+                document.getElementById('filtroFechaReservas').value = payload.fecha;
+                fetchReservas();
+            }
+        } else {
+            showToast('Error al guardar', data.error || 'Verifique los datos e intente de nuevo.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Reserva';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. MESAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchMesas() {
+    // También cargar personal para drag and drop en esta vista
+    fetch('/api/admin/staff')
+        .then(r => r.json())
+        .then(staffList => {
+            renderDraggableStaff(staffList);
+        }).catch(() => {});
+
+    fetch('/api/admin/mesas')
+        .then(res => res.json())
+        .then(data => {
+            const grid = document.getElementById('mesasGrid');
+            grid.innerHTML = '';
+
+            const positions = [
+                {x:8,y:20},{x:30,y:20},{x:55,y:20},{x:78,y:20},
+                {x:20,y:55},{x:50,y:55},{x:10,y:78},{x:75,y:78}
+            ];
+
+            data.forEach((m, idx) => {
+                const pos = positions[idx] || { x: 50, y: 50 };
+                const estadoClass = m.estado.toLowerCase();
+
+                const div = document.createElement('div');
+                div.className = `mesa-item ${estadoClass}`;
+                // Ajustamos altura para acomodar la información adicional
+                div.style.cssText = `position:absolute; left:${pos.x}%; top:${pos.y}%; width:90px; height:90px; padding:6px; display:flex; flex-direction:column; justify-content:space-between; align-items:center;`;
+                div.setAttribute('data-id', m.id);
+                div.onclick = () => showMesaDetail(m.numero_mesa, m.estado, m.capacidad, m.zona, m.empleado_nombre);
+
+                // Calcular temporizador si está ocupada
+                let timerStr = '';
+                if (m.timer_inicio && m.estado === 'Ocupada') {
+                    const start = new Date(m.timer_inicio);
+                    const diffMs = new Date() - start;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    timerStr = `<span style="font-size:9px; font-family:var(--font-mono); opacity:0.8;"><i class="fa-regular fa-clock"></i> ${diffMins}m</span>`;
+                }
+
+                // Indicador de pedido en preparación parpadeante
+                const prepStr = m.pedido_en_preparacion 
+                    ? `<span style="color:var(--gold-light); font-size:9px; font-weight:700;" class="pulse" title="Preparando Pedido"><i class="fa-solid fa-fire-burner"></i></span>`
+                    : '';
+
+                // Iniciales o primer nombre del mesero asignado
+                const waiterStr = m.empleado_nombre 
+                    ? `<span style="font-size:8px; background:rgba(255,255,255,0.25); padding:1px 3px; border-radius:3px; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Mesero: ${m.empleado_nombre}">${m.empleado_nombre.split(' ')[0]}</span>`
+                    : '';
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; width:100%; font-size:8px; opacity:0.8;">
+                        <span>${m.zona}</span>
+                        ${prepStr}
+                    </div>
+                    <strong style="font-family:var(--font-serif); font-size:16px;">${m.numero_mesa.toString().padStart(2,'0')}</strong>
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; gap:2px;">
+                        <span style="font-size:8px; opacity:0.7;">${m.capacidad} pax</span>
+                        ${timerStr}
+                        ${waiterStr}
+                    </div>
+                `;
+
+                // Drag & Drop (Mesas)
+                setupMesaDrag(div, m);
+
+                // Allow dropping staff members
+                div.ondragover = (event) => {
+                    event.preventDefault();
+                    div.style.boxShadow = '0 0 0 3px var(--gold)';
+                };
+                div.ondragleave = () => {
+                    div.style.boxShadow = '';
+                };
+                div.ondrop = (event) => {
+                    event.preventDefault();
+                    div.style.boxShadow = '';
+                    const staffId = event.dataTransfer.getData('text/plain');
+                    if (staffId) {
+                        assignStaffToMesa(m.id, staffId);
+                    }
+                };
+
+                grid.appendChild(div);
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el plano de mesas.', 'error'));
+}
+
+function renderDraggableStaff(staffList) {
+    const container = document.getElementById('staffDraggableList');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    // Filtrar meseros y personal activo
+    const activos = staffList.filter(e => e.activo);
+    
+    if (activos.length === 0) {
+        container.innerHTML = '<div style="font-size:11px; color:var(--gray-400); text-align:center;">No hay personal activo.</div>';
+        return;
+    }
+
+    activos.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'badge badge-neutral';
+        div.style.cssText = 'padding:8px 12px; cursor:grab; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; background:var(--gray-50); width:100%; text-align:left;';
+        div.draggable = true;
+        div.setAttribute('data-id', e.id);
+        div.innerHTML = `
+            <span><i class="fa-solid fa-user-tie" style="color:var(--gold-dark); margin-right:6px;"></i> <strong>${e.nombre}</strong> <span style="font-size:10px; color:var(--gray-400);">(${e.cargo})</span></span>
+        `;
+        div.ondragstart = (event) => {
+            event.dataTransfer.setData('text/plain', e.id);
+        };
+        container.appendChild(div);
+    });
+}
+
+function assignStaffToMesa(mesaId, staffId) {
+    fetch(`/api/admin/mesas/${mesaId}/empleado`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ empleado_id: parseInt(staffId) })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Asignación exitosa', data.message, 'success');
+            fetchMesas();
+        } else {
+            showToast('Error', data.error || 'No se pudo asignar el personal.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error al procesar la asignación.', 'error'));
+}
+
+function setupMesaDrag(mesaDiv, m) {
+    mesaDiv.onmousedown = function(event) {
+        if (event.target.tagName === 'BUTTON') return;
+        mesaDiv.setAttribute('data-dragging', 'false');
+        let isDragging = false;
+        let shiftX = event.clientX - mesaDiv.getBoundingClientRect().left;
+        let shiftY = event.clientY - mesaDiv.getBoundingClientRect().top;
+
+        function moveAt(pageX, pageY) {
+            const container = document.getElementById('mapaMesas');
+            const rect = container.getBoundingClientRect();
+            let newLeft = pageX - shiftX - rect.left;
+            let newTop  = pageY - shiftY - rect.top;
+            if (newLeft < 0) newLeft = 0;
+            if (newTop  < 0) newTop  = 0;
+            if (newLeft + mesaDiv.offsetWidth  > container.offsetWidth)  newLeft = container.offsetWidth  - mesaDiv.offsetWidth;
+            if (newTop  + mesaDiv.offsetHeight > container.offsetHeight) newTop  = container.offsetHeight - mesaDiv.offsetHeight;
+            const leftPct = (newLeft / container.offsetWidth)  * 100;
+            const topPct  = (newTop  / container.offsetHeight) * 100;
+            mesaDiv.style.left = leftPct + '%';
+            mesaDiv.style.top  = topPct  + '%';
+            mesaDiv.setAttribute('data-x', leftPct);
+            mesaDiv.setAttribute('data-y', topPct);
+        }
+
+        function onMouseMove(event) {
+            isDragging = true;
+            mesaDiv.setAttribute('data-dragging', 'true');
+            moveAt(event.pageX, event.pageY);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.onmouseup = function() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.onmouseup = null;
+            if (isDragging) {
+                const x = mesaDiv.getAttribute('data-x');
+                const y = mesaDiv.getAttribute('data-y');
+                if (x && y) {
+                    fetch(`/api/admin/mesas/${m.id}/coordenadas`, {
+                        method: 'PUT',
+                        headers: jsonHeaders(),
+                        body: JSON.stringify({ x: parseFloat(x), y: parseFloat(y) }),
+                    });
+                }
+                setTimeout(() => mesaDiv.setAttribute('data-dragging', 'false'), 50);
+            }
+        };
+    };
+    mesaDiv.ondragstart = () => false;
+}
+
+function showMesaDetail(num, estado, cap, zona = 'Principal', empleadoNombre = null) {
+    document.getElementById('md-num').textContent = num.toString().padStart(2, '0');
+    document.getElementById('md-estado').textContent = estado.toUpperCase();
+    document.getElementById('md-cap').textContent = `${cap} Pax`;
+    document.getElementById('md-zona').textContent = zona;
+    document.getElementById('md-personal').textContent = empleadoNombre || 'Ninguno';
+
+    const btnFactura = document.getElementById('btnMesaFactura');
+    if (estado === 'Ocupada') {
+        btnFactura.style.display = 'block';
+        btnFactura.onclick = function () {
+            fetch(`/api/admin/mesas/${num}/pedido-activo`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.pedido_id) viewTicket(data.pedido_id);
+                    else showToast('Sin pedido activo', 'Esta mesa no tiene pedido activo.', 'info');
+                });
+        };
+    } else {
+        btnFactura.style.display = 'none';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. STAFF
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchStaff() {
+    fetch('/api/admin/staff')
+        .then(res => res.json())
+        .then(data => {
+            const grid = document.getElementById('staffGrid');
+            grid.innerHTML = '';
+            if (!data || data.length === 0) {
+                grid.innerHTML = '<div class="table-empty">No hay personal registrado.</div>';
+                return;
+            }
+            data.forEach(e => {
+                let img = 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=80&w=150';
+                if (e.cargo && e.cargo.includes('Sommelier')) img = 'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&q=80&w=150';
+                if (e.cargo && e.cargo.includes('Mesero'))    img = 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=150';
+
+                grid.innerHTML += `
+                    <div class="staff-card">
+                        <div class="staff-avatar"><img src="${img}" alt="${e.cargo || 'Staff'}"></div>
+                        <div class="staff-name">${e.nombre || 'Sin nombre'}</div>
+                        <div class="staff-role">${e.cargo || 'Sin cargo'}</div>
+                        <div style="margin-top:8px;">
+                            <span class="badge ${e.activo ? 'badge-optimo' : 'badge-critico'}">${e.activo ? 'Activo' : 'Inactivo'}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el personal.', 'error'));
+}
+
+function submitStaff(e) {
+    e.preventDefault();
+    const payload = {
+        nombres: document.getElementById('staffNombre').value.trim(),
+        cargo:   document.getElementById('staffCargo').value,
+        rol:     document.getElementById('staffRol').value,
+    };
+
+    fetch('/api/admin/staff', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const creds = data.credenciales
+                ? `\n📧 Email: ${data.credenciales.email}\n🔑 Contraseña: ${data.credenciales.password}`
+                : '';
+            showToast('Staff registrado', `${payload.nombres} añadido como ${payload.cargo}.${creds}`, 'success');
+            closeModal('modalStaff');
+            document.getElementById('formStaff').reset();
+            fetchStaff();
+        } else {
+            showToast('Error', data.error || 'No se pudo registrar el empleado.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. INVENTARIO — Estado y funciones avanzadas
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _inventoryAll      = [];   // Dataset completo del servidor
+let _inventoryFiltered = [];   // Dataset después de filtros
+let _invPage      = 1;
+let _invPageSize  = 10;
+let _invSortCol   = null;
+let _invSortDir   = 'asc';
+
+/** Carga todos los insumos desde la API */
+function fetchInsumos() {
+    fetch('/api/admin/insumos')
+        .then(res => res.json())
+        .then(data => {
+            // Actualizar KPIs
+            document.getElementById('inv-valor-total').textContent = formatCOP(data.kpis.valor_total);
+            document.getElementById('inv-alertas').textContent     = data.kpis.alertas + ' Críticos';
+            document.getElementById('inv-rotacion').textContent    = data.kpis.rotacion;
+            document.getElementById('inv-items').textContent       = data.kpis.items_activos + ' SKU';
+
+            _inventoryAll = data.insumos || [];
+            filterAndRenderInventory();
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el inventario.', 'error'));
+}
+
+/** Filtra la data según búsqueda, categoría y estado, luego renderiza */
+function filterAndRenderInventory() {
+    const search   = (document.getElementById('invSearch')?.value         || '').toLowerCase();
+    const category = (document.getElementById('invCategoryFilter')?.value || '');
+    const status   = (document.getElementById('invStatusFilter')?.value   || '');
+
+    _inventoryFiltered = _inventoryAll.filter(i => {
+        const matchSearch   = !search   || i.nombre.toLowerCase().includes(search) || i.categoria.toLowerCase().includes(search);
+        const matchCategory = !category || i.categoria === category;
+        const matchStatus   = !status   || i.estado === status;
+        return matchSearch && matchCategory && matchStatus;
+    });
+
+    // Aplicar ordenamiento actual
+    if (_invSortCol) applySortToFiltered();
+
+    _invPage = 1; // Reset a página 1 al filtrar
+    renderInventoryPage();
+}
+
+/** Ordena la columna seleccionada */
+function sortInventory(col) {
+    if (_invSortCol === col) {
+        _invSortDir = _invSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _invSortCol = col;
+        _invSortDir = 'asc';
+    }
+
+    // Actualizar estilos de encabezados
+    document.querySelectorAll('table.haute-table th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+    });
+    const thMap = { nombre: 'th-nombre', categoria: 'th-categoria', stock: 'th-stock', precio: 'th-precio', estado: 'th-estado' };
+    const thEl = document.getElementById(thMap[col]);
+    if (thEl) thEl.classList.add(`sort-${_invSortDir}`);
+
+    applySortToFiltered();
+    _invPage = 1;
+    renderInventoryPage();
+}
+
+function applySortToFiltered() {
+    _inventoryFiltered.sort((a, b) => {
+        let va = a[_invSortCol];
+        let vb = b[_invSortCol];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return _invSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return _invSortDir === 'asc' ?  1 : -1;
+        return 0;
+    });
+}
+
+/** Cambia el tamaño de página */
+function changePageSize() {
+    _invPageSize = parseInt(document.getElementById('invPageSize').value);
+    _invPage = 1;
+    renderInventoryPage();
+}
+
+/** Renderiza la página actual de la tabla */
+function renderInventoryPage() {
+    const tbody    = document.getElementById('inventoryTableBody');
+    const total    = _inventoryFiltered.length;
+    const start    = (_invPage - 1) * _invPageSize;
+    const pageData = _inventoryFiltered.slice(start, start + _invPageSize);
+
+    tbody.innerHTML = '';
+
+    if (total === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="6" class="table-empty">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                No se encontraron insumos con esos filtros.
+            </td></tr>`;
+        renderPagination(0, 0);
+        return;
+    }
+
+    pageData.forEach(i => {
+        const badgeClass  = i.estado === 'CRÍTICO' ? 'badge-critico' : 'badge-optimo';
+        const stockColor  = i.estado === 'CRÍTICO' ? 'var(--danger)' : 'var(--black)';
+        const stockStr    = `<strong style="color:${stockColor};">${i.stock}</strong> <span style="color:var(--gray-400); font-size:11px;">${i.unidad}</span>`;
+        const precioStr   = formatCOP(i.precio);
+        const calcExtra   = i.categoria === 'Carnes'
+            ? `<br><span style="font-size:10px; color:var(--gold-dark); cursor:pointer;" onclick="mostrarCalculadoraMP('${i.id}', '${i.precio}')"><i class="fa-solid fa-calculator"></i> Calc. Porción</span>`
+            : '';
+
+        let img = 'https://images.unsplash.com/photo-1599599811442-1262d5f0e9f6?auto=format&fit=crop&q=80&w=80';
+        if (i.categoria === 'Carnes') img = 'https://images.unsplash.com/photo-1603048297172-c92544798d5e?auto=format&fit=crop&q=80&w=80';
+        if (i.nombre.toLowerCase().includes('trufa')) img = 'https://images.unsplash.com/photo-1626200419188-f56743b17c9d?auto=format&fit=crop&q=80&w=80';
+        if (i.categoria === 'Bodega Exclusiva' || i.nombre.toLowerCase().includes('vino') || i.nombre.toLowerCase().includes('champagne')) img = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=80';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div class="inv-item-info">
+                    <img src="${img}" class="inv-img" alt="${i.nombre}">
+                    <div>
+                        <strong style="display:block; font-size:13px;">${i.nombre}</strong>
+                        <span style="font-size:11px; color:var(--gray-400);">Mínimo: ${i.stock_minimo} ${i.unidad}</span>
+                    </div>
+                </div>
+            </td>
+            <td><span class="badge badge-neutral" style="font-weight:600;">${i.categoria.toUpperCase()}</span></td>
+            <td>${stockStr}</td>
+            <td>${precioStr}${calcExtra}</td>
+            <td>
+                <span class="badge ${badgeClass}">
+                    <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px;"></span>
+                    ${i.estado}
+                </span>
+            </td>
+            <td>
+                <button class="btn-danger" onclick="eliminarMateriaPrima(${i.id}, '${i.nombre.replace(/'/g, "\\'")}')" title="Eliminar insumo">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    renderPagination(total, start + pageData.length);
+}
+
+/** Renderiza los controles de paginación */
+function renderPagination(total, showing) {
+    const totalPages = Math.ceil(total / _invPageSize);
+    const info       = document.getElementById('invPaginationInfo');
+    const controls   = document.getElementById('invPaginationControls');
+
+    info.textContent = total > 0
+        ? `Mostrando ${(_invPage - 1) * _invPageSize + 1}–${Math.min(_invPage * _invPageSize, total)} de ${total} ítems`
+        : '0 resultados';
+
+    controls.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    // Botón anterior
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    prev.disabled  = _invPage === 1;
+    prev.onclick   = () => { _invPage--; renderInventoryPage(); };
+    controls.appendChild(prev);
+
+    // Números de página
+    for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 7 && Math.abs(p - _invPage) > 2 && p !== 1 && p !== totalPages) {
+            if (p === 2 || p === totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.cssText = 'padding:0 4px; color:var(--gray-400);';
+                controls.appendChild(dots);
+            }
+            continue;
+        }
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (p === _invPage ? ' active' : '');
+        btn.textContent = p;
+        btn.onclick = ((page) => () => { _invPage = page; renderInventoryPage(); })(p);
+        controls.appendChild(btn);
+    }
+
+    // Botón siguiente
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    next.disabled  = _invPage === totalPages;
+    next.onclick   = () => { _invPage++; renderInventoryPage(); };
+    controls.appendChild(next);
+}
+
+// ── Calculadora de porción ──
+
+function checkCategoriaMP() {
+    const cat  = document.getElementById('mpCategoria').value;
+    const calc = document.getElementById('mpCalculadoraPorcion');
+    calc.style.display = (cat === 'Carnes') ? 'block' : 'none';
+}
+
+function calcularPorcion() {
+    const costo  = parseFloat(document.getElementById('mpCosto').value) || 0;
+    const gramos = parseFloat(document.getElementById('mpPesoPorcion')?.value) || 0;
+    const res    = document.getElementById('mpCostoPorcionRes');
+    if (!res) return;
+    if (gramos > 0 && costo > 0) {
+        const costoGramos = (costo / 1000) * gramos;
+        res.innerHTML = `Costo por porción (${gramos}g): <strong style="color:var(--gold-dark);">${formatCOP(costoGramos)}</strong>`;
+    } else {
+        res.innerHTML = 'Ingresa costo y peso por porción.';
+    }
+}
+
+function mostrarCalculadoraMP(id, precio) {
+    document.getElementById('mpCosto').value    = precio;
+    document.getElementById('mpCategoria').value = 'Carnes';
+    checkCategoriaMP();
+    openModal('modalMateriaPrima');
+}
+
+// ── CRUD de MateriaPrima ──
+
+function submitMateriaPrima(e) {
+    e.preventDefault();
+
+    // Validación frontend
+    const campos = ['mpNombre', 'mpCategoria', 'mpUnidad', 'mpCantidad', 'mpStockMinimo', 'mpCosto'];
+    let valid = true;
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`err-${id}`);
+        if (!el.value || el.value === '') {
+            el.classList.add('error');
+            if (err) err.classList.add('visible');
+            valid = false;
+        } else {
+            el.classList.remove('error');
+            if (err) err.classList.remove('visible');
+        }
+    });
+
+    if (!valid) {
+        showToast('Formulario incompleto', 'Completa todos los campos obligatorios.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitMateriaPrima');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:          document.getElementById('mpNombre').value.trim(),
+        categoria:       document.getElementById('mpCategoria').value,
+        cantidad_actual: parseFloat(document.getElementById('mpCantidad').value),
+        unidad_medida:   document.getElementById('mpUnidad').value,
+        stock_minimo:    parseFloat(document.getElementById('mpStockMinimo').value),
+        costo_unitario:  parseFloat(document.getElementById('mpCosto').value),
+    };
+
+    fetch('/api/admin/insumos', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Insumo guardado', `"${payload.nombre}" fue añadido al inventario.`, 'success');
+            closeModal('modalMateriaPrima');
+            document.getElementById('formMateriaPrima').reset();
+            document.getElementById('mpCalculadoraPorcion').style.display = 'none';
+            fetchInsumos();
+        } else {
+            const errMsg = data.errors
+                ? Object.values(data.errors).flat().join(' ')
+                : (data.error || 'Verifique los datos.');
+            showToast('Error al guardar', errMsg, 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Insumo';
+    });
+}
+
+function eliminarMateriaPrima(id, nombre) {
+    if (!confirm(`¿Eliminar el insumo "${nombre}"? Esta acción no se puede deshacer.`)) return;
+
+    fetch(`/api/admin/insumos/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': csrfToken() },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Insumo eliminado', `"${nombre}" fue removido del inventario.`, 'success');
+            fetchInsumos();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión al eliminar.', 'error'));
+}
+
+// ── Exportación ──
+
+function exportCSV() {
+    if (_inventoryFiltered.length === 0) {
+        showToast('Sin datos', 'No hay insumos que exportar con los filtros actuales.', 'warning');
+        return;
+    }
+    const headers = ['ID', 'Nombre', 'Categoría', 'Stock Actual', 'Unidad', 'Costo Unitario', 'Stock Mínimo', 'Estado'];
+    const rows    = _inventoryFiltered.map(i => [i.id, i.nombre, i.categoria, i.stock, i.unidad, i.precio, i.stock_minimo, i.estado]);
+    const csv     = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    downloadFile(csv, `inventario_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    showToast('Exportado', 'El inventario fue exportado como CSV.', 'success');
+}
+
+function exportJSON() {
+    if (_inventoryFiltered.length === 0) {
+        showToast('Sin datos', 'No hay insumos que exportar con los filtros actuales.', 'warning');
+        return;
+    }
+    const json = JSON.stringify(_inventoryFiltered, null, 2);
+    downloadFile(json, `inventario_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+    showToast('Exportado', 'El inventario fue exportado como JSON.', 'success');
+}
+
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ── Reposición ──
+
+function submitReposicion(e) {
+    e.preventDefault();
+    const pin = document.getElementById('repPin').value;
+
+    fetch('/api/admin/insumos/pedido', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ pin }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Pedido enviado', data.message || 'Pedido de reposición generado correctamente.', 'success');
+            closeModal('modalReposicion');
+            document.getElementById('formReposicion').reset();
+        } else {
+            showToast('Error', data.error || 'PIN inválido o error en el servidor.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. HISTORIAL DE PEDIDOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchHistorial() {
+    const search = document.getElementById('pedidosSearch')?.value || '';
+    let url = '/api/pedidos';
+    if (search) url += `?search=${encodeURIComponent(search)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            const tbody  = document.getElementById('historialTableBody');
+            tbody.innerHTML = '';
+            const pedidos = data.data || [];
+
+            if (pedidos.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="table-empty"><i class="fa-solid fa-receipt"></i> No se encontraron pedidos.</td></tr>`;
+                return;
+            }
+
+            pedidos.forEach(p => {
+                const d           = new Date(p.created_at);
+                const formatMesa  = p.mesa   ? `Mesa ${p.mesa.numero_mesa}` : 'Bar / Llevar';
+                const formatClient = p.cliente && p.cliente.usuario
+                    ? `${p.cliente.usuario.nombres} ${p.cliente.usuario.apellidos}`
+                    : 'Cliente Estándar';
+                const formatTotal = formatCOP(p.total);
+
+                let badgeClass = 'badge-optimo';
+                if (p.estado === 'Cancelado')                         badgeClass = 'badge-critico';
+                else if (['Nuevo', 'En_Preparacion'].includes(p.estado)) badgeClass = 'badge-pendiente';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>#${p.id.toString().padStart(4, '0')}</strong></td>
+                        <td style="font-size:12px; color:var(--gray-600);">
+                            ${d.toLocaleDateString()}<br>
+                            ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </td>
+                        <td>
+                            <strong style="display:block;">${formatClient}</strong>
+                            <span style="font-size:11px; color:var(--gray-400);">${formatMesa}</span>
+                        </td>
+                        <td><strong>${formatTotal}</strong></td>
+                        <td><span class="badge ${badgeClass}">${p.estado}</span></td>
+                        <td>
+                            <button class="btn-outline" style="padding:6px 12px; font-size:12px;" onclick="viewTicket(${p.id})">
+                                <i class="fa-regular fa-file-lines"></i> Ticket
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el historial.', 'error'));
+}
+
+function viewTicket(id) {
+    fetch(`/api/pedidos/${id}`)
+        .then(res => res.json())
+        .then(p => {
+            document.getElementById('ticketNum').textContent = `#${p.id.toString().padStart(4,'0')}`;
+            const d = new Date(p.created_at);
+            document.getElementById('ticketDate').textContent    = `${d.toLocaleDateString()} — ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+            document.getElementById('ticketClient').textContent  = p.cliente && p.cliente.usuario
+                ? `${p.cliente.usuario.nombres} ${p.cliente.usuario.apellidos}` : 'Cliente Genérico';
+            document.getElementById('ticketMesa').textContent    = p.mesa ? `Mesa ${p.mesa.numero_mesa}` : 'Bar / Llevar';
+
+            const itemsContainer = document.getElementById('ticketItems');
+            itemsContainer.innerHTML = '';
+
+            if (p.detalles && p.detalles.length > 0) {
+                p.detalles.forEach(item => {
+                    const sub = formatCOP(item.subtotal);
+                    itemsContainer.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <div style="flex:1;">${item.cantidad}x ${item.producto ? item.producto.nombre : 'Item'}</div>
+                            <div style="text-align:right;">${sub}</div>
+                        </div>
+                        ${item.notas_especiales ? `<div style="font-size:11px; font-style:italic; padding-left:14px; color:var(--gray-400); margin-bottom:5px;">— ${item.notas_especiales}</div>` : ''}
+                    `;
+                });
+            } else {
+                itemsContainer.innerHTML = '<div style="color:var(--gray-400); font-style:italic;">Sin detalle de ítems.</div>';
+            }
+
+            document.getElementById('ticketTotal').textContent = formatCOP(p.total);
+            openModal('modalTicket');
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el ticket.', 'error'));
+}
+
+// ── Comanda ──
+function submitComanda(e) {
+    e.preventDefault();
+    fetch('/api/admin/mesas/comanda', {
+        method: 'POST',
+        headers: jsonHeaders(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Acción ejecutada', 'La comanda fue procesada correctamente.', 'success');
+            closeModal('modalComanda');
+        } else {
+            showToast('Error', 'No se pudo ejecutar la acción.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EDICIÓN DE RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Abre el modal de edición precargado con los datos de una reserva */
+function abrirEditarReserva(r) {
+    document.getElementById('editReservaId').value = r.id;
+    // Extraer nombre desde las notas si está guardado ahí
+    let nombre = r.cliente_nombre || '';
+    const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
+    if (matchNota) nombre = matchNota[1].trim();
+
+    document.getElementById('editReservaNombre').value  = nombre;
+    document.getElementById('editReservaFecha').value   = (r.fecha_hora || r.fecha || '').substring(0, 10);
+    document.getElementById('editReservaHora').value    = r.hora || (r.fecha_hora || '').substring(11, 16);
+    document.getElementById('editReservaPersonas').value= r.num_personas || '';
+    document.getElementById('editReservaEstado').value  = r.estado || 'Confirmada';
+
+    // Extraer notas sin la parte de "Cliente: xxx —"
+    let notasLimpias = (r.notas || '').replace(/Cliente:\s*[^—\n]+(—\s*)?/i, '').trim();
+    document.getElementById('editReservaNotas').value = notasLimpias;
+
+    // Cargar opciones de mesas en el select
+    const selMesa = document.getElementById('editReservaMesa');
+    selMesa.innerHTML = '<option value="">— Cargando mesas... —</option>';
+    fetch('/api/admin/mesas')
+        .then(res => res.json())
+        .then(mesas => {
+            selMesa.innerHTML = '<option value="">— Seleccionar —</option>';
+            mesas.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `Mesa ${m.numero_mesa} (${m.capacidad} pax) — ${m.estado}`;
+                if (m.id === r.mesa_id) opt.selected = true;
+                selMesa.appendChild(opt);
+            });
+        }).catch(() => {
+            selMesa.innerHTML = '<option value="">— Error al cargar —</option>';
+        });
+
+    openModal('modalEditarReserva');
+}
+
+/** Envía la edición al servidor */
+function submitEditarReserva(e) {
+    e.preventDefault();
+    const id = document.getElementById('editReservaId').value;
+    if (!id) return;
+
+    const btn = document.getElementById('btnSubmitEditarReserva');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    const payload = {
+        nombre:   document.getElementById('editReservaNombre').value.trim(),
+        fecha:    document.getElementById('editReservaFecha').value,
+        hora:     document.getElementById('editReservaHora').value,
+        personas: parseInt(document.getElementById('editReservaPersonas').value),
+        mesa_id:  parseInt(document.getElementById('editReservaMesa').value),
+        estado:   document.getElementById('editReservaEstado').value,
+        notas:    document.getElementById('editReservaNotas').value.trim(),
+    };
+
+    fetch(`/api/admin/reservas/${id}`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Reserva actualizada', 'El cliente fue notificado del cambio.', 'success');
+            closeModal('modalEditarReserva');
+            fetchReservas();
+        } else {
+            showToast('Error', data.error || 'No se pudo actualizar la reserva.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cambios';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ELIMINACIÓN DE RESERVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function abrirEliminarReserva(id, nombre, estado) {
+    // Bloquear eliminación de completadas en frontend también
+    if (estado === 'Completada') {
+        showToast('Acción no permitida', 'No se pueden eliminar reservas ya completadas.', 'warning');
+        return;
+    }
+    document.getElementById('eliminarReservaId').value = id;
+    document.getElementById('eliminarReservaNombre').textContent = nombre;
+    openModal('modalEliminarReserva');
+}
+
+function confirmarEliminarReserva() {
+    const id = document.getElementById('eliminarReservaId').value;
+    if (!id) return;
+
+    const btn = document.getElementById('btnConfirmarEliminar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Eliminando...';
+
+    fetch(`/api/admin/reservas/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': csrfToken() },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Reserva eliminada', 'El cliente fue notificado de la cancelación.', 'success');
+            closeModal('modalEliminarReserva');
+            fetchReservas();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar la reserva.', 'error');
+        }
+    })
+    .catch(() => showToast('Error', 'Error de conexión al eliminar.', 'error'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-trash"></i> Sí, Cancelar Reserva';
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORTADORES CORPORATIVOS — Excel y PDF
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _getMetaExport() {
+    if (!_metaSemana || !_ventasPorDia.length) {
+        showToast('Sin datos', 'Espera a que cargue el reporte de la semana.', 'warning');
+        return null;
+    }
+    return {
+        meta: _metaSemana,
+        filas: _ventasPorDia.filter(d => !d.es_futuro),
+    };
+}
+
+function exportarExcel() {
+    const d = _getMetaExport();
+    if (!d) return;
+
+    const { meta, filas } = d;
+    const ahora = new Date();
+    const fechaGen = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+
+    // Construir workbook
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: Encabezado corporativo + tabla
+    const encabezado = [
+        ['SABOR A PUEBLO', '', '', '', ''],
+        ['Reporte de Ventas Semanales', '', '', '', ''],
+        [`Semana: ${meta.inicio} al ${meta.fin}`, '', '', '', ''],
+        [`Generado: ${fechaGen}`, '', '', '', ''],
+        [''],
+        ['Día', 'Fecha', 'Ventas (COP)', 'Pedidos', 'Ticket Prom.'],
+    ];
+
+    const totalRow = (val) => val.toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+
+    const datos = filas.map(r => [
+        r.dia,
+        r.fecha,
+        r.ventas,
+        r.pedidos,
+        r.pedidos > 0 ? Math.round(r.ventas / r.pedidos) : 0,
+    ]);
+
+    const totales = [
+        [''],
+        ['TOTALES', '', meta.total_semanal, meta.total_pedidos, meta.ticket_semanal],
+    ];
+
+    const wsData = [...encabezado, ...datos, ...totales];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Anchos de columna
+    ws['!cols'] = [{ wch:12 }, { wch:14 }, { wch:20 }, { wch:12 }, { wch:18 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Ventas Semanales');
+
+    const filename = `reporte_ventas_semanal_${meta.inicio}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showToast('✓ Excel exportado', `Archivo: ${filename}`, 'success');
+}
+
+function exportarPDF() {
+    const d = _getMetaExport();
+    if (!d) return;
+
+    const { meta, filas } = d;
+    const ahora = new Date();
+    const fechaGen = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    // ─ Encabezado corporativo ─
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(210, 165, 85);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('SABOR A PUEBLO', 14, 12);
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    doc.text('Restaurante & Cocina Tradicional', 14, 19);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generado: ${fechaGen}`, 150, 19);
+
+    // ─ Sub-encabezado ─
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Reporte de Ventas Semanales', 14, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Período: ${meta.inicio}  al  ${meta.fin}`, 14, 47);
+
+    // ─ KPIs resumen ─
+    const fmtCOP = (n) => n.toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+    doc.setDrawColor(210, 165, 85);
+    doc.setLineWidth(0.3);
+    doc.line(14, 52, 196, 52);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    doc.text(`Total semanal: ${fmtCOP(meta.total_semanal)}`, 14, 60);
+    doc.text(`Total pedidos: ${meta.total_pedidos}`, 80, 60);
+    doc.text(`Ticket prom.: ${fmtCOP(meta.ticket_semanal)}`, 140, 60);
+
+    // ─ Tabla de datos ─
+    const colHeaders = [['Día', 'Fecha', 'Ventas (COP)', 'Pedidos', 'Ticket Prom. (COP)']];
+    const filasPDF = filas.map(r => [
+        r.dia,
+        r.fecha,
+        fmtCOP(r.ventas),
+        r.pedidos,
+        r.pedidos > 0 ? fmtCOP(Math.round(r.ventas / r.pedidos)) : '—',
+    ]);
+
+    doc.autoTable({
+        head: colHeaders,
+        body: filasPDF,
+        startY: 68,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [10, 10, 10], textColor: [210, 165, 85], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [249, 247, 243] },
+        footStyles: { fillColor: [240, 235, 225], fontStyle: 'bold' },
+        foot: [['TOTAL', '', fmtCOP(meta.total_semanal), meta.total_pedidos, fmtCOP(meta.ticket_semanal)]],
+        showFoot: 'lastPage',
+        margin: { left: 14, right: 14 },
+    });
+
+    // ─ Pie de página ─
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Página ${i} de ${pageCount}  —  Sabor a Pueblo  —  Documento confidencial`, 14, 290);
+    }
+
+    const filename = `reporte_ventas_semanal_${meta.inicio}.pdf`;
+    doc.save(filename);
+    showToast('✓ PDF exportado', `Archivo: ${filename}`, 'success');
+}
+
+// ══════════════════════════════════════════════════════════
+// GESTIÓN DE PRODUCTOS DEL MENÚ
+// ══════════════════════════════════════════════════════════
+
+let _productos      = [];   // lista completa cargada desde API
+let _categorias     = [];   // lista de categorías
+let _productosFilt  = [];   // lista filtrada
+
+/** Carga productos y categorías al entrar al tab */
+async function fetchProductos() {
+    try {
+        const [resProd, resCat] = await Promise.all([
+            apiFetch('/api/admin/productos'),
+            apiFetch('/api/admin/categorias'),
+        ]);
+        if (resProd.ok && resCat.ok) {
+            _productos  = await resProd.json();
+            _categorias = await resCat.json();
+            _populateCatFilter();
+            _populateCatSelect();
+            filterProductos();
+            _updateProductosKPIs();
+        }
+    } catch (e) {
+        showToast('Error', 'No se pudieron cargar los productos.', 'error');
+    }
+}
+
+/** Rellena el filtro de categoría del toolbar */
+function _populateCatFilter() {
+    const sel = document.getElementById('prodCatFilter');
+    sel.innerHTML = '<option value="">Todas las categorías</option>';
+    _categorias.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.nombre;
+        sel.appendChild(o);
+    });
+}
+
+/** Rellena el select de categoría en el modal */
+function _populateCatSelect() {
+    const sel = document.getElementById('prodCategoria');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    _categorias.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.nombre;
+        sel.appendChild(o);
+    });
+}
+
+/** Actualiza las métricas KPI del tab */
+function _updateProductosKPIs() {
+    const total    = _productos.length;
+    const disp     = _productos.filter(p => p.disponible).length;
+    const noDispo  = total - disp;
+    const cats     = new Set(_productos.map(p => p.categoria_id)).size;
+    document.getElementById('prod-kpi-total').textContent        = total;
+    document.getElementById('prod-kpi-disponibles').textContent  = disp;
+    document.getElementById('prod-kpi-nodisponibles').textContent = noDispo;
+    document.getElementById('prod-kpi-categorias').textContent   = cats;
+}
+
+/** Filtra y re-renderiza la cuadrícula */
+function filterProductos() {
+    const q    = (document.getElementById('prodSearch').value || '').toLowerCase();
+    const cat  = document.getElementById('prodCatFilter').value;
+    const disp = document.getElementById('prodDispFilter').value;
+
+    _productosFilt = _productos.filter(p => {
+        const matchQ   = !q   || p.nombre.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q);
+        const matchCat = !cat || String(p.categoria_id) === cat;
+        const matchD   = disp === '' || String(p.disponible ? 1 : 0) === disp;
+        return matchQ && matchCat && matchD;
+    });
+    _renderProductosGrid();
+}
+
+/** Renderiza las tarjetas */
+function _renderProductosGrid() {
+    const grid = document.getElementById('productosGrid');
+    if (_productosFilt.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--gray-400)">
+            <i class="fa-solid fa-utensils" style="font-size:40px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+            No se encontraron productos con esos filtros.
+        </div>`;
+        return;
+    }
+
+    grid.innerHTML = _productosFilt.map(p => {
+        const cat     = _categorias.find(c => c.id === p.categoria_id);
+        const catName = cat ? cat.nombre : '—';
+        const precio  = parseFloat(p.precio).toLocaleString('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+        const badge   = p.disponible
+            ? `<span style="background:#D4EDDA;color:#155724;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Disponible</span>`
+            : `<span style="background:#F8D7DA;color:#721C24;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> No Disponible</span>`;
+        const img = p.imagen_url
+            ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:100%;height:160px;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+               <div style="width:100%;height:160px;background:var(--gold-bg);display:none;align-items:center;justify-content:center;"><i class="fa-solid fa-image" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`
+            : `<div style="width:100%;height:160px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-utensils" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`;
+        return `<div class="panel-box" style="padding:0;overflow:hidden;display:flex;flex-direction:column;" id="prod-card-${p.id}">
+            <div style="position:relative;overflow:hidden;">
+                ${img}
+                <div style="position:absolute;top:10px;right:10px;">${badge}</div>
+            </div>
+            <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold-dark);font-weight:700;">${catName}</div>
+                <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--black);line-height:1.3;">${p.nombre}</div>
+                ${p.descripcion ? `<div style="font-size:12px;color:var(--gray-400);">${p.descripcion.substring(0,80)}${p.descripcion.length>80?'…':''}</div>` : ''}
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;border-top:1px solid var(--border);">
+                    <span style="font-size:18px;font-weight:800;color:var(--black);">${precio}</span>
+                    <span style="font-size:11px;color:var(--gray-400);">Stock: <strong>${p.stock}</strong></span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button class="btn-outline" style="flex:1;padding:6px 8px;font-size:11px;" onclick="openEditProducto(${p.id})">
+                        <i class="fa-solid fa-pen-to-square"></i> Editar
+                    </button>
+                    <button class="btn-outline" style="padding:6px 10px;font-size:11px;" onclick="toggleDisponible(${p.id})" title="${p.disponible?'Desactivar del menú':'Activar en menú'}">
+                        <i class="fa-solid ${p.disponible?'fa-eye-slash':'fa-eye'}"></i>
+                    </button>
+                    <button class="btn-danger" style="padding:6px 10px;font-size:11px;" onclick="openDeleteProducto(${p.id},'${p.nombre.replace(/'/g,"\\'")}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/** Adapta los campos, placeholders y valores sugeridos según la categoría seleccionada */
+function _onCategoriaModalChange() {
+    const catId = document.getElementById('prodCategoria').value;
+    const cat = _categorias.find(c => String(c.id) === String(catId));
+    const catName = cat ? cat.nombre.toLowerCase() : '';
+
+    const labelNombre = document.getElementById('lblProdNombre');
+    const inputNombre = document.getElementById('prodNombre');
+    const inputDesc   = document.getElementById('prodDescripcion');
+    const inputTiempo = document.getElementById('prodTiempo');
+    const inputIngred = document.getElementById('prodIngredientes');
+    const labelIngred = document.getElementById('lblProdIngredientes');
+    const hintCat     = document.getElementById('prodCatHint');
+
+    if (catName.includes('hamburguesa')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Hamburguesa *';
+        inputNombre.placeholder = 'Ej: Hamburguesa Chipotle Ahumada';
+        inputDesc.placeholder   = 'Carne 150g al carbón, pan brioche, queso cheddar fundido, tocino crujiente y salsa especial...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Carne res, Pan brioche, Queso cheddar, Tocino ahumado, Cebolla caramelizada...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 15;
+        if (hintCat) hintCat.textContent = '🍔 Categoría: Hamburguesas — Detalla tipo de pan, peso de la carne y salsas.';
+    } else if (catName.includes('taco') || catName.includes('quesadilla')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Plato / Tacos *';
+        inputNombre.placeholder = 'Ej: Tacos al Pastor / Quesadilla de Birria';
+        inputDesc.placeholder   = '3 tacos en tortilla de maíz con jugosa carne adobada, piña asada, cebolla morada y cilantro...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Cerdo adobado, Tortillas de maíz, Piña, Cilantro, Cebolla morada, Salsa...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 10;
+        if (hintCat) hintCat.textContent = '🌮 Categoría: Tacos & Quesadillas — Indica número de unidades, tipo de tortilla y salsas.';
+    } else if (catName.includes('bebida') || catName.includes('coctel') || catName.includes('trago')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Bebida / Cóctel *';
+        inputNombre.placeholder = 'Ej: Margarita de Maracuyá / Agua de Horchata';
+        inputDesc.placeholder   = 'Bebida refrescante servida con hielo frappé, fruta natural y escarchado de sal y tajín...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Base del Cóctel';
+        inputIngred.placeholder = 'Tequila blanco, Triple sec, Pulpa de maracuyá, Limón, Sal marina, Tajín...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 3;
+        if (hintCat) hintCat.textContent = '🍹 Categoría: Bebidas — Puedes especificar si contiene alcohol, tamaño o temperatura.';
+    } else if (catName.includes('postre')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Postre *';
+        inputNombre.placeholder = 'Ej: Churros Artesanales con Arequipe';
+        inputDesc.placeholder   = 'Crujientes churros artesanales espolvoreados con azúcar y canela, acompañados de salsa...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Harina de trigo, Azúcar, Canela, Dulce de leche / Arequipe...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 5;
+        if (hintCat) hintCat.textContent = '🍨 Categoría: Postres — Ideal para detallar acompañamientos como bolas de helado o toppings.';
+    } else if (catName.includes('acompaña') || catName.includes('entrada') || catName.includes('papas')) {
+        if (labelNombre) labelNombre.textContent = 'Nombre de la Entrada / Acompañamiento *';
+        inputNombre.placeholder = 'Ej: Papas Mexicanas con Queso / Nachos';
+        inputDesc.placeholder   = 'Gajos de papas crujientes bañados en queso fundido, pico de gallo y jalapeños...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Papas cortadas, Queso cheddar fundido, Pico de gallo, Crema agria, Jalapeños...';
+        if (!inputTiempo.value || inputTiempo.value === '15') inputTiempo.value = 8;
+        if (hintCat) hintCat.textContent = '🍟 Categoría: Acompañamientos — Indica si es porción individual o para compartir.';
+    } else {
+        if (labelNombre) labelNombre.textContent = 'Nombre del Plato *';
+        inputNombre.placeholder = 'Ej: Plato Especial Sabor a Pueblo';
+        inputDesc.placeholder   = 'Descripción del plato, ingredientes principales y presentación...';
+        if (labelIngred) labelIngred.textContent = 'Ingredientes / Alérgenos';
+        inputIngred.placeholder = 'Ingredientes principales separados por coma...';
+        if (hintCat) hintCat.textContent = '';
+    }
+}
+
+/** Abre modal en modo creación */
+function openModalProducto() {
+    document.getElementById('prodId').value = '';
+    document.getElementById('modalProductoTituloText').textContent = 'Nuevo Producto';
+    document.getElementById('formProducto').reset();
+    document.getElementById('prodDisponible').checked = true;
+    _onCategoriaModalChange();
+    openModal('modalProducto');
+}
+
+/** Abre modal en modo edición */
+function openEditProducto(id) {
+    const p = _productos.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('prodId').value              = p.id;
+    document.getElementById('modalProductoTituloText').textContent = 'Editar Producto';
+    document.getElementById('prodNombre').value          = p.nombre || '';
+    document.getElementById('prodCategoria').value       = p.categoria_id || '';
+    document.getElementById('prodDescripcion').value     = p.descripcion || '';
+    document.getElementById('prodPrecio').value          = p.precio || '';
+    document.getElementById('prodStock').value           = p.stock || 0;
+    document.getElementById('prodTiempo').value          = p.tiempo_preparacion || '';
+    document.getElementById('prodImagenUrl').value       = p.imagen_url || '';
+    document.getElementById('prodIngredientes').value   = p.ingredientes || '';
+    document.getElementById('prodDisponible').checked   = !!p.disponible;
+    _onCategoriaModalChange();
+    openModal('modalProducto');
+}
+
+/** Envía el formulario de crear/editar */
+async function submitProducto(e) {
+    e.preventDefault();
+    const id = document.getElementById('prodId').value;
+    const body = {
+        nombre:             document.getElementById('prodNombre').value.trim(),
+        categoria_id:       parseInt(document.getElementById('prodCategoria').value),
+        descripcion:        document.getElementById('prodDescripcion').value.trim(),
+        precio:             parseFloat(document.getElementById('prodPrecio').value),
+        stock:              parseInt(document.getElementById('prodStock').value),
+        tiempo_preparacion: parseInt(document.getElementById('prodTiempo').value) || null,
+        imagen_url:         document.getElementById('prodImagenUrl').value.trim() || null,
+        ingredientes:       document.getElementById('prodIngredientes').value.trim() || null,
+        disponible:         document.getElementById('prodDisponible').checked,
+    };
+
+    const btn = document.getElementById('btnSubmitProducto');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        const method = id ? 'PUT' : 'POST';
+        const url    = id ? `/api/admin/productos/${id}` : '/api/admin/productos';
+        const res    = await apiFetch(url, { method, body: JSON.stringify(body) });
+        const data   = await res.json();
+        if (res.ok && data.success) {
+            closeModal('modalProducto');
+            showToast('✓ Producto guardado', `"${data.producto.nombre}" actualizado en el menú.`, 'success');
+            await fetchProductos();
+        } else {
+            showToast('Error', data.message || data.error || 'Error al guardar el producto.', 'error');
+        }
+    } catch (err) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Producto';
+    }
+}
+
+/** Activa o desactiva la disponibilidad del producto sin abrir modal */
+async function toggleDisponible(id) {
+    const p = _productos.find(x => x.id === id);
+    if (!p) return;
+    try {
+        const res  = await apiFetch(`/api/admin/productos/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ ...p, disponible: !p.disponible }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const estado = data.producto.disponible ? 'Disponible' : 'No disponible';
+            showToast('✓ Actualizado', `"${p.nombre}" ahora está ${estado} en el menú.`, 'success');
+            await fetchProductos();
+        }
+    } catch (e) {
+        showToast('Error', 'No se pudo cambiar el estado.', 'error');
+    }
+}
+
+/** Abre el modal de confirmación de eliminación */
+function openDeleteProducto(id, nombre) {
+    document.getElementById('eliminarProductoId').value = id;
+    document.getElementById('eliminarProductoNombre').textContent = nombre;
+    openModal('modalEliminarProducto');
+}
+
+/** Confirma y ejecuta la eliminación */
+async function confirmarEliminarProducto() {
+    const id = document.getElementById('eliminarProductoId').value;
+    try {
+        const res  = await apiFetch(`/api/admin/productos/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            closeModal('modalEliminarProducto');
+            showToast('✓ Listo', data.message || 'Producto eliminado.', 'success');
+            await fetchProductos();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar.', 'error');
+        }
+    } catch (e) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    }
+}
+
+// Integrar en el switchTab existente: cargar productos al entrar al tab
+const _origSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+if (_origSwitchTab) {
+    const _sw = switchTab;
+    switchTab = function(tab) {
+        _sw(tab);
+        if (tab === 'productos') fetchProductos();
+    };
+}
