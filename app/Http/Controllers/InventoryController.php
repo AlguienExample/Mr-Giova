@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DetallePedidoProveedor;
 use App\Models\MateriaPrima;
+use App\Models\PedidoProveedor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * InventoryController
  *
- * Gestiona el inventario de materias primas (insumos) del restaurante.
- * Todas las operaciones CRUD quedan registradas en el log del servidor.
+ * Gestiona el inventario de materias primas (insumos) del restaurante,
+ * así como el ciclo de vida completo de los pedidos de reposición a proveedores.
+ * Todas las operaciones quedan registradas en el log del servidor.
  */
 class InventoryController extends Controller
 {
@@ -23,7 +28,6 @@ class InventoryController extends Controller
     {
         try {
             $insumos = MateriaPrima::all()->map(function ($p) {
-                $estado = $p->cantidad_actual <= $p->stock_minimo ? 'CRÍTICO' : 'ÓPTIMO';
                 return [
                     'id'          => $p->id,
                     'nombre'      => $p->nombre,
@@ -31,7 +35,7 @@ class InventoryController extends Controller
                     'stock'       => (float) $p->cantidad_actual,
                     'unidad'      => $p->unidad_medida,
                     'precio'      => (float) $p->costo_unitario,
-                    'estado'      => $estado,
+                    'estado'      => $p->estado,          // accessor del modelo
                     'stock_minimo'=> (float) $p->stock_minimo,
                 ];
             });
@@ -160,6 +164,10 @@ class InventoryController extends Controller
 
     /**
      * Elimina un insumo del inventario.
+     *
+     * Si el insumo tiene historial de pedidos de reposición asociados (FK en
+     * detalle_pedido_proveedor) se devuelve HTTP 409 con un mensaje descriptivo
+     * en vez del genérico "Error interno al eliminar.".
      */
     public function destroy($id)
     {
@@ -181,6 +189,17 @@ class InventoryController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['success' => false, 'error' => 'Insumo no encontrado.'], 404);
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            // FK constraint: el insumo tiene filas en detalle_pedido_proveedor
+            Log::warning('[InventoryController@destroy] ⚠️ FK constraint al intentar eliminar insumo', [
+                'id'    => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error'   => 'No se puede eliminar: este insumo tiene historial de pedidos de reposición asociados.',
+            ], 409);
+
         } catch (\Exception $e) {
             Log::error('[InventoryController@destroy] ❌ Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => 'Error interno al eliminar.'], 500);
@@ -190,6 +209,10 @@ class InventoryController extends Controller
     /**
      * Genera un pedido de reposición a proveedores para ítems en estado CRÍTICO.
      * Requiere PIN de autorización del gerente.
+     *
+     * Crea un PedidoProveedor en estado 'Pendiente' y un DetallePedidoProveedor
+     * por cada MateriaPrima::critico() encontrada, con cantidad_pedida sugerida
+     * (stock_minimo * 2 - cantidad_actual, nunca negativa) y snapshot del costo.
      */
     public function storeReposicion(Request $request)
     {
@@ -200,8 +223,8 @@ class InventoryController extends Controller
 
             $user = auth()->user();
 
-            // Validar PIN de autorización (como confirmación de contraseña)
-            if (!\Illuminate\Support\Facades\Hash::check($request->pin, $user->password)) {
+            // Validar PIN de autorización (confirmación de contraseña)
+            if (!Hash::check($request->pin, $user->password)) {
                 Log::warning('[InventoryController@storeReposicion] PIN inválido intentado por ' . $user->email);
                 return response()->json([
                     'success' => false,
@@ -216,31 +239,211 @@ class InventoryController extends Controller
                 ], 422);
             }
 
-            // Registrar pedido de reposición
-            DB::table('pedidos_proveedor')->insert([
-                'empleado_id' => $user->empleado->id,
-                'estado'      => 'Aprobado',
-                'notas'       => 'Reposición automática de ítems críticos — ' . now()->toDateTimeString(),
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
+            $pedido = DB::transaction(function () use ($user) {
+                // Obtener insumos críticos dentro de la transacción
+                $criticos = MateriaPrima::critico()->get();
 
-            // Contar ítems críticos
-            $criticos = MateriaPrima::whereColumn('cantidad_actual', '<=', 'stock_minimo')->count();
+                if ($criticos->isEmpty()) {
+                    throw new HttpException(422, 'No hay insumos en estado crítico que requieran reposición.');
+                }
+
+                // Crear el pedido cabecera
+                $pedido = PedidoProveedor::create([
+                    'empleado_id' => $user->empleado->id,
+                    'estado'      => 'Pendiente',
+                    'notas'       => 'Reposición automática de ítems críticos — ' . now()->toDateTimeString(),
+                ]);
+
+                // Crear una línea de detalle por cada insumo crítico
+                foreach ($criticos as $insumo) {
+                    $cantidadSugerida = max(0, ($insumo->stock_minimo * 2) - $insumo->cantidad_actual);
+
+                    DetallePedidoProveedor::create([
+                        'pedido_proveedor_id'    => $pedido->id,
+                        'materia_prima_id'       => $insumo->id,
+                        'cantidad_pedida'        => $cantidadSugerida,
+                        'costo_unitario_momento' => $insumo->costo_unitario,
+                    ]);
+                }
+
+                return $pedido;
+            });
+
+            $pedido->load('detalles.materiaPrima');
 
             Log::info('[InventoryController@storeReposicion] ✅ Pedido de reposición generado', [
-                'items_criticos' => $criticos,
+                'pedido_id'      => $pedido->id,
+                'items_criticos' => $pedido->detalles->count(),
                 'autorizado_por' => 'PIN válido',
+                'empleado_id'    => $user->empleado->id,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Pedido de reposición enviado para {$criticos} ítem(s) crítico(s).",
+                'message' => "Pedido de reposición generado para {$pedido->detalles->count()} ítem(s) crítico(s).",
+                'data'    => $pedido,
             ]);
+
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], $e->getStatusCode());
 
         } catch (\Exception $e) {
             Log::error('[InventoryController@storeReposicion] ❌ Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => 'Error al generar el pedido.'], 500);
+        }
+    }
+
+    /**
+     * Devuelve el historial completo de pedidos de reposición.
+     * Paginación 100% client-side: se devuelve toda la lista de una vez.
+     * Filtro opcional por ?estado= (Pendiente | Enviado | Recibido | Cancelado).
+     */
+    public function historialReposiciones(Request $request)
+    {
+        try {
+            $query = PedidoProveedor::with('detalles.materiaPrima', 'empleado.usuario')
+                ->latest();
+
+            if ($request->filled('estado')) {
+                $query->where('estado', $request->input('estado'));
+            }
+
+            $pedidos = $query->get();
+
+            Log::info('[InventoryController@historialReposiciones] 📋 Historial consultado', [
+                'total'  => $pedidos->count(),
+                'filtro' => $request->input('estado', 'todos'),
+            ]);
+
+            return response()->json(['data' => $pedidos]);
+
+        } catch (\Exception $e) {
+            Log::error('[InventoryController@historialReposiciones] ❌ Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al obtener el historial de reposiciones.'], 500);
+        }
+    }
+
+    /**
+     * Marca un pedido de reposición como 'Recibido' y suma el stock de cada insumo.
+     *
+     * Usa el patrón lock-first para prevenir race conditions:
+     * la transacción se abre primero y el lock sobre el pedido se adquiere ANTES
+     * de leer su estado, garantizando que dos peticiones simultáneas no dupliquen
+     * el incremento de stock.
+     */
+    public function marcarRecibido($id)
+    {
+        try {
+            $pedido = DB::transaction(function () use ($id) {
+                // 1. Adquirir lock sobre el pedido ANTES de leer su estado
+                $pedido = PedidoProveedor::with('detalles')
+                    ->lockForUpdate()
+                    ->findOrFail($id);
+
+                // 2. Verificar estado DESPUÉS de tener el lock
+                if ($pedido->estado === 'Recibido') {
+                    throw new HttpException(422, 'Este pedido ya fue marcado como recibido.');
+                }
+
+                // 3. Sumar stock a cada insumo, con lockForUpdate() dentro de la misma transacción
+                foreach ($pedido->detalles as $detalle) {
+                    $mp = MateriaPrima::lockForUpdate()->findOrFail($detalle->materia_prima_id);
+                    $mp->increment('cantidad_actual', $detalle->cantidad_pedida);
+                }
+
+                // 4. Actualizar estado al final, dentro de la misma transacción
+                $pedido->update([
+                    'estado'         => 'Recibido',
+                    'fecha_recibido' => now(),
+                ]);
+
+                return $pedido;
+            });
+
+            $pedido->load('detalles.materiaPrima', 'empleado.usuario');
+
+            Log::info('[InventoryController@marcarRecibido] ✅ Pedido recibido y stock actualizado', [
+                'pedido_id'    => $pedido->id,
+                'items'        => $pedido->detalles->count(),
+                'fecha_recibido' => $pedido->fecha_recibido,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido marcado como recibido. Stock actualizado correctamente.',
+                'data'    => $pedido,
+            ]);
+
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], $e->getStatusCode());
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'error' => 'Pedido no encontrado.'], 404);
+
+        } catch (\Exception $e) {
+            Log::error('[InventoryController@marcarRecibido] ❌ Error: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+            ]);
+            return response()->json(['success' => false, 'error' => 'Error al procesar la recepción del pedido.'], 500);
+        }
+    }
+
+    /**
+     * Cancela un pedido de reposición (no toca el stock, ya que nunca se sumó).
+     *
+     * Usa el mismo patrón lock-first que marcarRecibido() para evitar que
+     * ambas operaciones corran en paralelo y dejen el pedido en estado inconsistente.
+     */
+    public function cancelarReposicion($id)
+    {
+        try {
+            $pedido = DB::transaction(function () use ($id) {
+                // 1. Adquirir lock sobre el pedido ANTES de leer su estado
+                $pedido = PedidoProveedor::lockForUpdate()->findOrFail($id);
+
+                // 2. Verificar estado DESPUÉS de tener el lock
+                if ($pedido->estado === 'Recibido') {
+                    throw new HttpException(422, 'No se puede cancelar un pedido ya recibido.');
+                }
+
+                // 3. Cancelar — sin tocar stock porque nunca se sumó
+                $pedido->update(['estado' => 'Cancelado']);
+
+                return $pedido;
+            });
+
+            $pedido->load('detalles.materiaPrima', 'empleado.usuario');
+
+            Log::info('[InventoryController@cancelarReposicion] 🚫 Pedido cancelado', [
+                'pedido_id' => $pedido->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido de reposición cancelado correctamente.',
+                'data'    => $pedido,
+            ]);
+
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], $e->getStatusCode());
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'error' => 'Pedido no encontrado.'], 404);
+
+        } catch (\Exception $e) {
+            Log::error('[InventoryController@cancelarReposicion] ❌ Error: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+            ]);
+            return response()->json(['success' => false, 'error' => 'Error al cancelar el pedido.'], 500);
         }
     }
 }

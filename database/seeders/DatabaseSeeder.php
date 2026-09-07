@@ -14,6 +14,7 @@ use App\Models\Producto;
 use App\Models\Pedido;
 use App\Models\DetallePedido;
 use Carbon\Carbon;
+use Database\Seeders\PedidoProveedorSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -388,6 +389,10 @@ class DatabaseSeeder extends Seeder
             }
         }
 
+        // 8. Recetas de productos (BOM: Producto ↔ MateriaPrima)
+        $this->call(MateriaPrimaSeeder::class);
+        $this->call(ProductoMateriaPrimaSeeder::class);
+
         // 7. Pedidos Activos para Hoy (Simulando los del mock)
         $hoy = Carbon::now();
 
@@ -559,5 +564,8 @@ class DatabaseSeeder extends Seeder
             'subtotal' => $p7->precio,
             'estado_item' => 'Listo'
         ]);
+
+        // Pedidos de reposición de ejemplo
+        $this->call(PedidoProveedorSeeder::class);
     }
 }

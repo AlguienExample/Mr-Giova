@@ -23,7 +23,7 @@ Route::middleware(['throttle:crear-pedido'])->group(function () {
 });
 
 // Rutas Protegidas para Personal (requieren sesión web y rol)
-Route::middleware(['web', 'auth'])->group(function () {
+Route::middleware(['web', 'auth', 'single.session'])->group(function () {
 
     // Acciones exclusivas del Administrador
     Route::middleware(['role:Administrador'])->group(function () {
@@ -45,6 +45,9 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::put('/admin/insumos/{id}', [\App\Http\Controllers\InventoryController::class, 'update']);
         Route::delete('/admin/insumos/{id}', [\App\Http\Controllers\InventoryController::class, 'destroy']);
         Route::post('/admin/insumos/pedido', [\App\Http\Controllers\InventoryController::class, 'storeReposicion']);
+        Route::get('/admin/insumos/pedidos', [\App\Http\Controllers\InventoryController::class, 'historialReposiciones']);
+        Route::post('/admin/insumos/pedidos/{id}/recibir', [\App\Http\Controllers\InventoryController::class, 'marcarRecibido']);
+        Route::post('/admin/insumos/pedidos/{id}/cancelar', [\App\Http\Controllers\InventoryController::class, 'cancelarReposicion']);
         
         Route::get('/admin/staff', [\App\Http\Controllers\StaffController::class, 'index']);
         Route::post('/admin/staff', [\App\Http\Controllers\StaffController::class, 'store']);

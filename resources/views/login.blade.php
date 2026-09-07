@@ -80,6 +80,20 @@
                     <a href="#" class="forgot-password">¿Olvidó su contraseña?</a>
                 </div>
 
+                @if(session('sesion_activa'))
+                <div class="alert alert-warning sesion-activa-warning">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div class="sesion-activa-body">
+                        <strong>Sesión activa detectada</strong>
+                        <p>Se detectó una sesión activa con esta cuenta en otro dispositivo. Para continuar, confirma que deseas cerrar esa sesión e iniciar aquí.</p>
+                        <label class="sesion-activa-confirm">
+                            <input type="checkbox" name="forzar_sesion" value="1" required id="forzar_sesion">
+                            <span>Confirmo que quiero cerrar la sesión activa en el otro dispositivo e iniciar sesión aquí. <strong>Vuelve a escribir tu contraseña.</strong></span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+
                 <button type="submit" class="btn-login">
                     INICIAR SESIÓN <i class="fa-solid fa-arrow-right-to-bracket"></i>
                 </button>

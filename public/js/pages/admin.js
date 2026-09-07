@@ -85,7 +85,7 @@ const tabConfig = {
     reservas:   { title: 'Agenda de Reservas',   sub: 'Gestión de comensales y eventos especiales.',              fn: fetchReservas },
     mesas:      { title: 'Plano de Mesas',        sub: 'Asignación y estado de mesas en tiempo real.',            fn: fetchMesas },
     personal:   { title: 'Gestión de Personal',   sub: 'Administración del equipo Elite.',                        fn: fetchStaff },
-    inventario: { title: 'Control de Insumos',    sub: 'Inventario de ingredientes y materias primas.',           fn: fetchInsumos },
+    inventario: { title: 'Control de Insumos',    sub: 'Inventario de ingredientes y materias primas.',           fn: () => { fetchInsumos(); fetchHistorialReposiciones(); } },
     productos:  { title: 'Productos del Menú',    sub: 'Gestión del catálogo de platos del restaurante.',         fn: fetchProductos },
     pedidos:    { title: 'Historial de Pedidos',  sub: 'Registro de todas las operaciones.',                      fn: fetchHistorial },
 };
@@ -1095,12 +1095,313 @@ function submitReposicion(e) {
             showToast('Pedido enviado', data.message || 'Pedido de reposición generado correctamente.', 'success');
             closeModal('modalReposicion');
             document.getElementById('formReposicion').reset();
+            // Refrescar historial e inventario para reflejar el nuevo pedido
+            fetchHistorialReposiciones();
+            fetchInsumos();
         } else {
             showToast('Error', data.error || 'PIN inválido o error en el servidor.', 'error');
         }
     })
     .catch(() => showToast('Error', 'Error de conexión.', 'error'));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORIAL DE REPOSICIONES (paginación 100% client-side)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _reposicionAll      = [];  // Lista completa desde API
+let _reposicionFiltered = [];  // Después del filtro de estado
+let _repPage     = 1;
+let _repPageSize = 10;
+
+/** Carga todos los pedidos de reposición desde la API */
+function fetchHistorialReposiciones() {
+    fetch('/api/admin/insumos/pedidos')
+        .then(res => res.json())
+        .then(data => {
+            _reposicionAll = data.data || [];
+            filterAndRenderReposiciones();
+        })
+        .catch(() => showToast('Error', 'No se pudo cargar el historial de reposiciones.', 'error'));
+}
+
+/** Filtra por estado y renderiza — misma lógica que filterAndRenderInventory */
+function filterAndRenderReposiciones() {
+    const estado = (document.getElementById('repEstadoFilter')?.value || '');
+
+    _reposicionFiltered = _reposicionAll.filter(p => !estado || p.estado === estado);
+
+    _repPage = 1;
+    renderReposicionPage();
+}
+
+/** Renderiza la página actual de la tabla de reposiciones */
+function renderReposicionPage() {
+    const tbody    = document.getElementById('repTableBody');
+    const total    = _reposicionFiltered.length;
+    const start    = (_repPage - 1) * _repPageSize;
+    const pageData = _reposicionFiltered.slice(start, start + _repPageSize);
+
+    tbody.innerHTML = '';
+
+    if (total === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="6" class="table-empty">
+                <i class="fa-solid fa-truck"></i>
+                No hay pedidos de reposición con esos filtros.
+            </td></tr>`;
+        renderReposicionPagination(0);
+        return;
+    }
+
+    pageData.forEach(p => {
+        const d        = new Date(p.created_at);
+        const fechaStr = `${d.toLocaleDateString('es-CO')}<br>
+                          <span style="font-size:11px; color:var(--gray-400);">
+                            ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}
+                          </span>`;
+
+        const empleado = p.empleado?.usuario
+            ? `${p.empleado.usuario.nombres} ${p.empleado.usuario.apellidos}`
+            : `Empleado #${p.empleado_id}`;
+
+        // Badge de estado
+        const badgeMap = {
+            Pendiente: 'badge-pendiente',
+            Enviado:   'badge-neutral',
+            Recibido:  'badge-optimo',
+            Cancelado: 'badge-critico',
+        };
+        const badgeClass = badgeMap[p.estado] || 'badge-neutral';
+        const badge = `<span class="badge ${badgeClass}">
+                         <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px;"></span>
+                         ${p.estado}
+                       </span>`;
+
+        const numInsumos = p.detalles?.length || 0;
+
+        // Costo total estimado = suma(cantidad_pedida * costo_unitario_momento)
+        const costoTotal = (p.detalles || []).reduce((acc, d) =>
+            acc + (parseFloat(d.cantidad_pedida) * parseFloat(d.costo_unitario_momento)), 0);
+
+        // Botones condicionales
+        const puedeRecibir  = p.estado === 'Pendiente' || p.estado === 'Enviado';
+        const puedeCancelar = p.estado === 'Pendiente' || p.estado === 'Enviado';
+
+        const btnRecibir = puedeRecibir
+            ? `<button class="btn-outline" style="padding:5px 10px; font-size:11px; color:var(--success,#1e8c45); border-color:var(--success,#1e8c45);"
+                       onclick="marcarPedidoRecibido(${p.id})" title="Marcar como recibido">
+                   <i class="fa-solid fa-check"></i> Recibido
+               </button>`
+            : '';
+
+        const btnCancelar = puedeCancelar
+            ? `<button class="btn-danger" style="padding:5px 10px; font-size:11px;"
+                       onclick="cancelarPedidoReposicion(${p.id})" title="Cancelar pedido">
+                   <i class="fa-solid fa-xmark"></i>
+               </button>`
+            : '';
+
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.innerHTML = `
+            <td style="font-size:12px;">${fechaStr}</td>
+            <td style="font-size:12px;">${empleado}</td>
+            <td>${badge}</td>
+            <td style="text-align:center; font-weight:700;">${numInsumos}</td>
+            <td style="text-align:right; font-size:12px;">${formatCOP(costoTotal)}</td>
+            <td style="text-align:center;">
+                <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
+                    <button class="btn-outline" style="padding:5px 10px; font-size:11px;"
+                            onclick="verDetallePedidoProveedor(${p.id})" title="Ver detalle">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    ${btnRecibir}
+                    ${btnCancelar}
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    renderReposicionPagination(total);
+}
+
+/** Renderiza la paginación del historial de reposiciones */
+function renderReposicionPagination(total) {
+    const totalPages = Math.ceil(total / _repPageSize);
+    const info       = document.getElementById('repPaginationInfo');
+    const controls   = document.getElementById('repPaginationControls');
+
+    if (info) {
+        info.textContent = total > 0
+            ? `Mostrando ${(_repPage - 1) * _repPageSize + 1}–${Math.min(_repPage * _repPageSize, total)} de ${total} pedidos`
+            : '0 resultados';
+    }
+
+    if (!controls) return;
+    controls.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    // Botón anterior
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    prev.disabled  = _repPage === 1;
+    prev.onclick   = () => { _repPage--; renderReposicionPage(); };
+    controls.appendChild(prev);
+
+    // Números de página
+    for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 7 && Math.abs(p - _repPage) > 2 && p !== 1 && p !== totalPages) {
+            if (p === 2 || p === totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.cssText = 'padding:0 4px; color:var(--gray-400);';
+                controls.appendChild(dots);
+            }
+            continue;
+        }
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (p === _repPage ? ' active' : '');
+        btn.textContent = p;
+        btn.onclick = ((page) => () => { _repPage = page; renderReposicionPage(); })(p);
+        controls.appendChild(btn);
+    }
+
+    // Botón siguiente
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    next.disabled  = _repPage === totalPages;
+    next.onclick   = () => { _repPage++; renderReposicionPage(); };
+    controls.appendChild(next);
+}
+
+/** Cambia el tamaño de página del historial de reposiciones */
+function changeRepPageSize() {
+    _repPageSize = parseInt(document.getElementById('repPageSize').value);
+    _repPage = 1;
+    renderReposicionPage();
+}
+
+/** Abre el modal con el detalle completo de un pedido de reposición */
+function verDetallePedidoProveedor(pedidoId) {
+    const pedido = _reposicionAll.find(p => p.id === pedidoId);
+    if (!pedido) {
+        showToast('Error', 'No se encontró el pedido.', 'error');
+        return;
+    }
+
+    // Metadata
+    document.getElementById('mdp-id').textContent = `#${String(pedido.id).padStart(4, '0')}`;
+
+    const d = new Date(pedido.created_at);
+    document.getElementById('mdp-fecha').textContent =
+        `${d.toLocaleDateString('es-CO')} — ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}`;
+
+    const empleado = pedido.empleado?.usuario
+        ? `${pedido.empleado.usuario.nombres} ${pedido.empleado.usuario.apellidos}`
+        : `Empleado #${pedido.empleado_id}`;
+    document.getElementById('mdp-empleado').textContent = empleado;
+
+    // Badge de estado
+    const badgeMap = {
+        Pendiente: 'badge-pendiente',
+        Enviado:   'badge-neutral',
+        Recibido:  'badge-optimo',
+        Cancelado: 'badge-critico',
+    };
+    document.getElementById('mdp-estado').innerHTML =
+        `<span class="badge ${badgeMap[pedido.estado] || 'badge-neutral'}">${pedido.estado}</span>`;
+
+    // Fecha recibido (si aplica)
+    const rowFR = document.getElementById('mdp-fecha-recibido-row');
+    if (pedido.fecha_recibido) {
+        const dr = new Date(pedido.fecha_recibido);
+        document.getElementById('mdp-fecha-recibido').textContent =
+            `${dr.toLocaleDateString('es-CO')} — ${dr.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}`;
+        rowFR.style.display = 'block';
+    } else {
+        rowFR.style.display = 'none';
+    }
+
+    // Detalle de insumos
+    const tbody = document.getElementById('mdp-detalles');
+    tbody.innerHTML = '';
+    let totalEstimado = 0;
+
+    (pedido.detalles || []).forEach(det => {
+        const mp = det.materia_prima;
+        const subtotal = parseFloat(det.cantidad_pedida) * parseFloat(det.costo_unitario_momento);
+        totalEstimado += subtotal;
+
+        tbody.innerHTML += `
+            <tr>
+                <td><strong style="font-size:12px;">${mp?.nombre || '—'}</strong></td>
+                <td><span class="badge badge-neutral" style="font-size:10px;">${mp?.categoria || '—'}</span></td>
+                <td style="text-align:right;">
+                    <strong>${parseFloat(det.cantidad_pedida).toLocaleString('es-CO')}</strong>
+                    <span style="font-size:10px; color:var(--gray-400); margin-left:2px;">${mp?.unidad_medida || ''}</span>
+                </td>
+                <td style="text-align:right; font-size:12px;">${formatCOP(parseFloat(det.costo_unitario_momento))}</td>
+                <td style="text-align:right; font-size:12px; font-weight:600;">${formatCOP(subtotal)}</td>
+            </tr>
+        `;
+    });
+
+    if ((pedido.detalles || []).length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="table-empty" style="padding:20px;">Sin insumos en este pedido.</td></tr>`;
+    }
+
+    document.getElementById('mdp-total').textContent = formatCOP(totalEstimado);
+
+    openModal('modalDetallePedido');
+}
+
+/** Marca un pedido de reposición como recibido y actualiza el stock */
+function marcarPedidoRecibido(id) {
+    if (!confirm('¿Confirmar recepción del pedido? Esto sumará el stock de todos los insumos pedidos.')) return;
+
+    fetch(`/api/admin/insumos/pedidos/${id}/recibir`, {
+        method: 'POST',
+        headers: jsonHeaders(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Pedido recibido', 'Stock actualizado correctamente para todos los insumos.', 'success');
+            fetchHistorialReposiciones();
+            fetchInsumos(); // Refrescar KPIs de inventario
+        } else {
+            showToast('Error', data.error || 'No se pudo marcar el pedido como recibido.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'));
+}
+
+/** Cancela un pedido de reposición (sin afectar el stock) */
+function cancelarPedidoReposicion(id) {
+    if (!confirm('¿Cancelar este pedido de reposición? El stock no se verá afectado.')) return;
+
+    fetch(`/api/admin/insumos/pedidos/${id}/cancelar`, {
+        method: 'POST',
+        headers: jsonHeaders(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Pedido cancelado', 'El pedido fue cancelado correctamente.', 'info');
+            fetchHistorialReposiciones();
+        } else {
+            showToast('Error', data.error || 'No se pudo cancelar el pedido.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'));
+}
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. HISTORIAL DE PEDIDOS

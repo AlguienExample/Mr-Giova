@@ -20,9 +20,9 @@ class SingleSession
             $user = Auth::user();
             $sessionToken = $request->session()->get('session_token');
 
-            // Si el token en la sesión no coincide con el token en BD (cuando hay un token configurado),
-            // significa que la cuenta fue usada en otro lugar.
-            if ($user->session_token !== null && $user->session_token !== $sessionToken) {
+            // Si el token en la sesión no coincide con el token en BD,
+            // significa que la cuenta fue usada en otro lugar o se cerró sesión.
+            if ($user->session_token !== $sessionToken) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();

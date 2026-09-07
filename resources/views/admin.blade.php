@@ -438,7 +438,74 @@
                         Usa el botón "Pedido de Reposición" para notificar a proveedores con autorización del gerente.
                     </div>
                 </div>
+
+                <!-- ─── Historial de Reposiciones ─── -->
+                <div style="margin-top:32px;">
+                    <!-- Cabecera con filtro -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div style="font-size:10px; color:var(--gold-dark); text-transform:uppercase; letter-spacing:2px; margin-bottom:4px; font-weight:700;">
+                                <i class="fa-solid fa-truck-ramp-box"></i> Órdenes a Proveedores
+                            </div>
+                            <div class="content-title" style="font-size:20px;">Historial de Reposiciones</div>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <select id="repEstadoFilter" class="inv-select" onchange="filterAndRenderReposiciones()" aria-label="Filtrar por estado">
+                                <option value="">Todos los estados</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Enviado">Enviado</option>
+                                <option value="Recibido">Recibido</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                            <button class="btn-outline" onclick="fetchHistorialReposiciones()" id="btn-refresh-reposiciones" title="Actualizar historial" style="padding:8px 14px;">
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de reposiciones -->
+                    <div class="panel-box" style="padding:0; overflow:hidden;">
+                        <table class="haute-table" id="repTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Generado por</th>
+                                    <th>Estado</th>
+                                    <th style="text-align:center;"># Insumos</th>
+                                    <th style="text-align:right;">Costo Total</th>
+                                    <th style="width:190px; text-align:center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repTableBody">
+                                <tr>
+                                    <td colspan="6" class="table-empty">
+                                        <i class="fa-solid fa-truck"></i>
+                                        Cargando historial de reposiciones...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Paginación client-side -->
+                        <div class="pagination-bar" id="repPaginationBar">
+                            <span id="repPaginationInfo">0 resultados</span>
+                            <div style="display:flex; align-items:center; gap:14px;">
+                                <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                                    <label for="repPageSize">Por página:</label>
+                                    <select id="repPageSize" class="inv-select" style="padding:4px 8px;" onchange="changeRepPageSize()">
+                                        <option value="5">5</option>
+                                        <option value="10" selected>10</option>
+                                        <option value="25">25</option>
+                                    </select>
+                                </div>
+                                <div class="pagination-controls" id="repPaginationControls"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
+
 
             <!-- ─────────────────────────────────────────────────
                  TAB: PRODUCTOS DEL MENÚ
@@ -1069,6 +1136,73 @@
                 <button class="btn-danger" style="flex:2;" onclick="confirmarEliminarProducto()">
                     <i class="fa-solid fa-trash"></i> Sí, Eliminar
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Detalle de Pedido de Reposición ── -->
+<div class="mrgiova-modal" id="modalDetallePedido" role="dialog" aria-modal="true" aria-labelledby="modalDetallePedidoTitulo">
+    <div class="modal-content" style="max-width:640px;">
+        <div class="modal-header">
+            <h3 id="modalDetallePedidoTitulo">
+                <i class="fa-solid fa-truck-ramp-box" style="color:var(--gold-dark); margin-right:8px;"></i>
+                Detalle del Pedido de Reposición
+            </h3>
+            <button class="modal-close-btn" onclick="closeModal('modalDetallePedido')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- Metadata del pedido -->
+            <div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:160px;">
+                    <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold-dark); font-weight:700; margin-bottom:4px;">Pedido</div>
+                    <div id="mdp-id" style="font-size:16px; font-weight:700; color:var(--black);"></div>
+                </div>
+                <div style="flex:1; min-width:160px;">
+                    <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold-dark); font-weight:700; margin-bottom:4px;">Fecha</div>
+                    <div id="mdp-fecha" style="font-size:13px; color:var(--gray-600);"></div>
+                </div>
+                <div style="flex:1; min-width:160px;">
+                    <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold-dark); font-weight:700; margin-bottom:4px;">Generado por</div>
+                    <div id="mdp-empleado" style="font-size:13px; color:var(--gray-600);"></div>
+                </div>
+                <div style="flex:1; min-width:160px;">
+                    <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold-dark); font-weight:700; margin-bottom:4px;">Estado</div>
+                    <div id="mdp-estado"></div>
+                </div>
+            </div>
+            <div id="mdp-fecha-recibido-row" style="display:none; margin-bottom:16px; padding:10px 14px; background:var(--gold-bg,#fdf8ef); border-radius:6px; border:1px solid var(--gold);">
+                <i class="fa-solid fa-calendar-check" style="color:var(--gold-dark); margin-right:6px;"></i>
+                <strong style="font-size:12px;">Recibido el:</strong> <span id="mdp-fecha-recibido" style="font-size:12px;"></span>
+            </div>
+
+            <!-- Tabla de insumos del pedido -->
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray-400); font-weight:700; margin-bottom:10px;">Insumos Pedidos</div>
+            <div class="panel-box" style="padding:0; overflow:hidden; margin-bottom:20px;">
+                <table class="haute-table" style="font-size:12px;">
+                    <thead>
+                        <tr>
+                            <th>Insumo</th>
+                            <th>Categoría</th>
+                            <th style="text-align:right;">Cantidad Pedida</th>
+                            <th style="text-align:right;">Costo Unit. (momento)</th>
+                            <th style="text-align:right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mdp-detalles"></tbody>
+                    <tfoot>
+                        <tr style="background:var(--gold-bg,#fdf8ef);">
+                            <td colspan="4" style="text-align:right; font-weight:700; padding:10px 16px; font-size:12px;">TOTAL ESTIMADO</td>
+                            <td style="text-align:right; font-weight:700; padding:10px 16px; color:var(--gold-dark);" id="mdp-total"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-outline" onclick="closeModal('modalDetallePedido')">Cerrar</button>
             </div>
         </div>
     </div>

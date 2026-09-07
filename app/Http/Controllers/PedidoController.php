@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pedido;
 use App\Models\DetallePedido;
 use App\Models\Producto;
+use App\Models\MateriaPrima;
 use App\Models\Mesa;
 use App\Models\Cliente;
 use App\Models\Usuario;
@@ -140,6 +141,34 @@ class PedidoController extends Controller
 
                 // Descontar stock atómicamente
                 $producto->decrement('stock', $item['cantidad']);
+
+                // ── Descontar materias primas de la receta (BOM) ─────────────────
+                // Si el producto no tiene receta asociada, se omite sin fallar el pedido.
+                $receta = $producto->materiasPrimas()->get();
+
+                foreach ($receta as $mp) {
+                    $cantidadADescontar = $mp->pivot->cantidad_requerida * $item['cantidad'];
+
+                    $materiaPrima = MateriaPrima::where('id', $mp->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$materiaPrima || $materiaPrima->cantidad_actual < $cantidadADescontar) {
+                        DB::rollBack();
+                        $disponible = $materiaPrima ? $materiaPrima->cantidad_actual : 0;
+                        $nombreMP   = $materiaPrima ? $materiaPrima->nombre : "ID {$mp->id}";
+                        Log::warning('[PedidoController@store] Stock de materia prima insuficiente', [
+                            'materia_prima' => $nombreMP,
+                            'requerido'     => $cantidadADescontar,
+                            'disponible'    => $disponible,
+                        ]);
+                        return response()->json([
+                            'error' => "Stock de materia prima insuficiente: '{$nombreMP}'. Disponible: {$disponible} {$materiaPrima->unidad_medida}"
+                        ], 422);
+                    }
+
+                    $materiaPrima->decrement('cantidad_actual', $cantidadADescontar);
+                }
             }
 
             // Actualizar total del pedido
@@ -236,6 +265,16 @@ class PedidoController extends Controller
                     $prod = Producto::where('id', $detalle->producto_id)->lockForUpdate()->first();
                     if ($prod) {
                         $prod->increment('stock', $detalle->cantidad);
+
+                        // ── Revertir materias primas de la receta (BOM) ──────────────
+                        $receta = $prod->materiasPrimas()->get();
+                        foreach ($receta as $mp) {
+                            $cantidadARestaurar = $mp->pivot->cantidad_requerida * $detalle->cantidad;
+                            MateriaPrima::where('id', $mp->id)
+                                ->lockForUpdate()
+                                ->first()
+                                ?->increment('cantidad_actual', $cantidadARestaurar);
+                        }
                     }
                 }
             }

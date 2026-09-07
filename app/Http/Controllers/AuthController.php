@@ -46,6 +46,15 @@ class AuthController extends Controller
                 ]);
             }
 
+            // Bloquear segundo login si ya hay una sesión activa en otro dispositivo
+            if ($user->session_token !== null && !$request->boolean('forzar_sesion')) {
+                Auth::logout();
+                return back()
+                    ->withErrors(['email' => 'Ya existe una sesión activa con esta cuenta en otro dispositivo.'])
+                    ->onlyInput('email')
+                    ->with('sesion_activa', true);
+            }
+
             // Generar un token único para esta sesión (sesión única por usuario)
             $sessionToken = Str::random(60);
             $user->update(['session_token' => $sessionToken]);

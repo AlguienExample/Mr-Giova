@@ -39,4 +39,11 @@ class Producto extends Model
     {
         return $this->hasMany(DetallePedido::class, 'producto_id');
     }
+
+    public function materiasPrimas()
+    {
+        return $this->belongsToMany(MateriaPrima::class, 'producto_materia_prima')
+                     ->withPivot('cantidad_requerida')
+                     ->withTimestamps();
+    }
 }
