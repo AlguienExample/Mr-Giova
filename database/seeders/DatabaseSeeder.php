@@ -23,6 +23,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Limpiar base de datos para re-siembra limpia
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        \App\Models\DetallePedidoProveedor::truncate();
+        \App\Models\PedidoProveedor::truncate();
+        \Illuminate\Support\Facades\DB::table('producto_materia_prima')->truncate();
+        \App\Models\MateriaPrima::truncate();
+        \App\Models\DetallePedido::truncate();
+        \App\Models\Pedido::truncate();
+        \App\Models\Producto::truncate();
+        \App\Models\Categoria::truncate();
+        \App\Models\Mesa::truncate();
+        \App\Models\Cliente::truncate();
+        \App\Models\Empleado::truncate();
+        \App\Models\Usuario::truncate();
+        \App\Models\Role::truncate();
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
         // 1. Roles
         $rolAdmin = Role::create([
             'name' => 'Administrador',
@@ -307,7 +324,7 @@ class DatabaseSeeder extends Seeder
         // Postres
         $p13 = Producto::create([
             'categoria_id' => $catPost->id,
-            'nombre' => 'Churros con Cajeta',
+            'nombre' => 'Churros Tradicionales con Cajeta',
             'descripcion' => '3 churros crujientes recién fritos, espolvoreados con azúcar y canela, acompañados de una porción generosa de cajeta de cabra.',
             'precio' => 8900.00,
             'imagen_url' => 'https://images.unsplash.com/photo-1589135306090-e7f09099c9d9?auto=format&fit=crop&q=80&w=600',
@@ -329,9 +346,69 @@ class DatabaseSeeder extends Seeder
             'stock' => 6
         ]);
 
+        $p15 = Producto::create([
+            'categoria_id' => $catHamb->id,
+            'nombre' => 'Hamburguesa Tex-Mex Especial',
+            'descripcion' => 'Carne 150g al carbón, guacamole fresco, jalapeños en escabeche, tocino crujiente y doble queso cheddar fundido.',
+            'precio' => 26900.00,
+            'imagen_url' => 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&q=80&w=600',
+            'disponible' => true,
+            'tiempo_preparacion' => 15,
+            'ingredientes' => 'Carne res, Pan brioche, Queso cheddar, Tocino, Aguacate, Jalapeños, Salsa especial',
+            'stock' => 14
+        ]);
+
+        $p16 = Producto::create([
+            'categoria_id' => $catTaco->id,
+            'nombre' => 'Tacos Dorados de Pollo',
+            'descripcion' => '3 flautas crujientes rellenas de pechuga de pollo deshebrada, cubiertas con crema agria mexicana, lechuga y tomate fresco.',
+            'precio' => 17900.00,
+            'imagen_url' => 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&q=80&w=600',
+            'disponible' => true,
+            'tiempo_preparacion' => 12,
+            'ingredientes' => 'Pechuga de pollo, Tortillas de maíz, Crema agria, Lechuga, Tomate',
+            'stock' => 16
+        ]);
+
+        $p17 = Producto::create([
+            'categoria_id' => $catTaco->id,
+            'nombre' => 'Burrito Norteño de Res',
+            'descripcion' => 'Tortilla de harina gigante rellena de falda de res tierna, frijoles refritos, queso Oaxaca artesanal, arroz y guacamole.',
+            'precio' => 23900.00,
+            'imagen_url' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&q=80&w=600',
+            'disponible' => true,
+            'tiempo_preparacion' => 14,
+            'ingredientes' => 'Falda de res, Tortilla de harina gigante, Frijol refrito, Queso Oaxaca, Arroz, Crema, Aguacate',
+            'stock' => 12
+        ]);
+
+        $p18 = Producto::create([
+            'categoria_id' => $catAcom->id,
+            'nombre' => 'Nachos Supremos Especiales',
+            'descripcion' => 'Montaña de totopos de maíz artesanales cubiertos de carne molida sazonada, salsa de queso cheddar fundido, frijoles refritos, crema agria, jalapeños y guacamole.',
+            'precio' => 21900.00,
+            'imagen_url' => 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&q=80&w=600',
+            'disponible' => true,
+            'tiempo_preparacion' => 10,
+            'ingredientes' => 'Totopos de maíz, Carne res molida, Salsa queso cheddar, Frijol refrito, Guacamole, Crema agria, Jalapeños',
+            'stock' => 15
+        ]);
+
+        $p19 = Producto::create([
+            'categoria_id' => $catBebi->id,
+            'nombre' => 'Margarita Clásica de la Casa',
+            'descripcion' => 'Cóctel helado tradicional con Tequila Reposado 100% agave, licor Triple Sec, zumo de limón tahití recién exprimido y copa escarchada con sal de mar.',
+            'precio' => 15900.00,
+            'imagen_url' => 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600',
+            'disponible' => true,
+            'tiempo_preparacion' => 5,
+            'ingredientes' => 'Tequila reposado, Triple sec, Limón tahití, Sal de mar',
+            'stock' => 20
+        ]);
+
         // 6. Historial de Pedidos para el Dashboard (Últimos 7 días)
         $diasAtras = 7;
-        $productosLista = [$p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8, $p9, $p10, $p11, $p12, $p13, $p14];
+        $productosLista = [$p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8, $p9, $p10, $p11, $p12, $p13, $p14, $p15, $p16, $p17, $p18, $p19];
 
         for ($dia = $diasAtras; $dia >= 1; $dia--) {
             $fecha = Carbon::now()->subDays($dia)->setTime(rand(12, 22), rand(0, 59));
