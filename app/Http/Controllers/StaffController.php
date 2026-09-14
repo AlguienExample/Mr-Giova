@@ -22,9 +22,9 @@ class StaffController extends Controller
         });
         return response()->json($staff);
     }
-
     public function store(Request $request)
     {
+
         $request->validate([
             'nombres' => 'required|string|max:255',
             'cargo'   => 'required|string|max:50',
@@ -39,8 +39,20 @@ class StaffController extends Controller
             $nombres   = array_shift($parts);
             $apellidos = count($parts) > 0 ? implode(' ', $parts) : '';
             
-            // Generar email temporal único
-            $email = strtolower($nombres) . rand(100,999) . '@saborapueblo.com';
+            // Email sanitizado (sin acentos/espacios) y garantizado único con reintentos
+            $base = \Illuminate\Support\Str::slug($nombres, '') ?: 'usuario';
+            $email = null;
+            for ($i = 0; $i < 5; $i++) {
+                $candidato = strtolower($base) . rand(100, 999) . '@saborapueblo.com';
+                if (!Usuario::where('email', $candidato)->exists()) {
+                    $email = $candidato;
+                    break;
+                }
+            }
+            if (!$email) {
+                DB::rollBack();
+                return response()->json(['error' => 'No se pudo generar un correo único. Intente de nuevo.'], 422);
+            }
 
             // Buscar el rol por nombre (validado ya arriba con exists:roles,name)
             $role = \App\Models\Role::where('name', $request->rol)->firstOrFail();
@@ -77,7 +89,61 @@ class StaffController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('[StaffController@store] ' . $e->getMessage());
+            return response()->json(['error' => 'No se pudo registrar el empleado. Intente de nuevo.'], 500);
         }
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'cargo'  => 'sometimes|string|max:50',
+            'activo' => 'sometimes|boolean',
+        ]);
+
+        $empleado = Empleado::with('usuario')->find($id);
+        if (!$empleado) {
+            return response()->json(['error' => 'Empleado no encontrado.'], 404);
+        }
+
+        if ($request->has('activo') && !$request->boolean('activo')
+            && $empleado->usuario_id === auth()->id()) {
+            return response()->json(['error' => 'No puedes desactivar tu propio usuario.'], 422);
+        }
+
+        DB::transaction(function () use ($request, $empleado) {
+            if ($request->has('cargo')) {
+                $empleado->update(['cargo' => $request->input('cargo')]);
+            }
+            if ($empleado->usuario && $request->has('activo')) {
+                $empleado->usuario->update(['activo' => $request->boolean('activo')]);
+            }
+        });
+
+        return response()->json(['success' => true, 'message' => 'Empleado actualizado correctamente.']);
+    }
+
+    public function destroy($id)
+    {
+        $empleado = Empleado::find($id);
+        if (!$empleado) {
+            return response()->json(['error' => 'Empleado no encontrado.'], 404);
+        }
+
+        if ($empleado->usuario_id === auth()->id()) {
+            return response()->json(['error' => 'No puedes eliminar tu propio usuario.'], 422);
+        }
+
+        // Con historial de reposiciones: no borrar, desactivar en su lugar.
+        if (\App\Models\PedidoProveedor::where('empleado_id', $empleado->id)->exists()) {
+            return response()->json([
+                'error' => 'No se puede eliminar: el empleado tiene reposiciones registradas. Desactívalo en su lugar.',
+            ], 422);
+        }
+
+        // Borrar el usuario arrastra al empleado (FK cascade).
+        $empleado->usuario?->delete();
+
+        return response()->json(['success' => true, 'message' => 'Empleado eliminado correctamente.']);
     }
 }

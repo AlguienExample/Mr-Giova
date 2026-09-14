@@ -65,48 +65,89 @@ class PedidoController extends Controller
         try {
             DB::beginTransaction();
 
-            // Buscar la mesa y cambiar estado a Ocupada
-            $mesa = Mesa::find($request->mesa_id);
-            if (!$mesa) {
-                // Si mandaron el número de mesa en lugar del ID, buscamos por número
-                $mesa = Mesa::where('numero_mesa', $request->mesa_id)->first();
-            }
+            $tipo = $request->input('tipo_pedido', 'Presencial');
+            $mesa = null;
 
-            if (!$mesa) {
-                return response()->json(['error' => 'Mesa no encontrada'], 404);
-            }
-
-            $mesa->update(['estado' => 'Ocupada', 'timer_inicio' => now()]);
-
-            // Encontrar el cliente asociado a esta mesa o auto-crear uno genérico
-            $emailMesa = "cliente.mesa{$mesa->numero_mesa}@saborapueblo.com";
-            $usuarioMesa = Usuario::where('email', $emailMesa)->first();
-            if ($usuarioMesa && $usuarioMesa->cliente) {
-                $clienteId = $usuarioMesa->cliente->id;
+            if ($tipo === 'Para_Llevar') {
+                // Sin mesa: un único cliente "Mostrador" para todos los para-llevar.
+                $emailMostrador = 'cliente.mostrador@saborapueblo.com';
+                $usuarioMostrador = Usuario::where('email', $emailMostrador)->first();
+                if (!$usuarioMostrador || !$usuarioMostrador->cliente) {
+                    try {
+                        $usuarioMostrador = $usuarioMostrador ?? Usuario::create([
+                            'nombres'   => 'Cliente',
+                            'apellidos' => 'Mostrador',
+                            'email'     => $emailMostrador,
+                            'password'  => Hash::make(\Illuminate\Support\Str::password(16)),
+                            'rol_id'    => \App\Models\Role::where('name', 'Cliente')->value('id') ?? 1,
+                            'activo'    => true,
+                        ]);
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        $usuarioMostrador = Usuario::where('email', $emailMostrador)->first();
+                        if (!$usuarioMostrador) {
+                            throw $e;
+                        }
+                    }
+                    $clienteMostrador = $usuarioMostrador->cliente ?? Cliente::create([
+                        'usuario_id' => $usuarioMostrador->id,
+                    ]);
+                    $clienteId = $clienteMostrador->id;
+                } else {
+                    $clienteId = $usuarioMostrador->cliente->id;
+                }
             } else {
-                // Auto-crear usuario y cliente genérico para esta mesa
-                $usuarioMesa = Usuario::create([
-                    'nombres'   => 'Cliente',
-                    'apellidos' => "Mesa {$mesa->numero_mesa}",
-                    'email'     => $emailMesa,
-                    'password'  => Hash::make(\Illuminate\Support\Str::password(16)),
-                    'rol_id'    => \App\Models\Role::where('name', 'Cliente')->value('id') ?? 1,
-                    'activo'    => true,
-                ]);
-                $clienteMesa = Cliente::create([
-                    'usuario_id'     => $usuarioMesa->id,
-                ]);
-                $clienteId = $clienteMesa->id;
-                Log::info('[PedidoController@store] Cliente genérico auto-creado para mesa ' . $mesa->numero_mesa);
+                // Buscar la mesa y cambiar estado a Ocupada (con bloqueo para evitar pedidos duplicados)
+                $mesa = Mesa::where('id', $request->mesa_id)->lockForUpdate()->first();
+                if (!$mesa) {
+                    // Si mandaron el número de mesa en lugar del ID, buscamos por número
+                    $mesa = Mesa::where('numero_mesa', $request->mesa_id)->lockForUpdate()->first();
+                }
+
+                if (!$mesa) {
+                    return response()->json(['error' => 'Mesa no encontrada'], 404);
+                }
+
+                $mesa->update(['estado' => 'Ocupada', 'timer_inicio' => now()]);
+
+                // Encontrar el cliente asociado a esta mesa o auto-crear uno genérico
+                $emailMesa = "cliente.mesa{$mesa->numero_mesa}@saborapueblo.com";
+                $usuarioMesa = Usuario::where('email', $emailMesa)->first();
+                if ($usuarioMesa && $usuarioMesa->cliente) {
+                    $clienteId = $usuarioMesa->cliente->id;
+                } else {
+                    // Auto-crear usuario y cliente genérico para esta mesa.
+                    // El try/catch cubre la carrera: dos pedidos simultáneos de una mesa
+                    // nueva pueden intentar crear el mismo email a la vez.
+                    try {
+                        $usuarioMesa = $usuarioMesa ?? Usuario::create([
+                            'nombres'   => 'Cliente',
+                            'apellidos' => "Mesa {$mesa->numero_mesa}",
+                            'email'     => $emailMesa,
+                            'password'  => Hash::make(\Illuminate\Support\Str::password(16)),
+                            'rol_id'    => \App\Models\Role::where('name', 'Cliente')->value('id') ?? 1,
+                            'activo'    => true,
+                        ]);
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        $usuarioMesa = Usuario::where('email', $emailMesa)->first();
+                        if (!$usuarioMesa) {
+                            throw $e;
+                        }
+                    }
+                    $clienteMesa = $usuarioMesa->cliente ?? Cliente::create([
+                        'usuario_id'     => $usuarioMesa->id,
+                    ]);
+                    $clienteId = $clienteMesa->id;
+                    Log::info('[PedidoController@store] Cliente genérico auto-creado para mesa ' . $mesa->numero_mesa);
+                }
             }
 
             // Crear el pedido
             $pedido = Pedido::create([
                 'cliente_id' => $clienteId,
                 'empleado_id' => null, // Se asigna cuando el mesero o cocinero lo atiende
-                'mesa_id' => $mesa->id,
+                'mesa_id' => $mesa?->id,
                 'estado' => 'Nuevo',
-                'tipo_pedido' => 'Presencial',
+                'tipo_pedido' => $tipo,
                 'total' => 0,
                 'notas' => $request->notas,
                 'prioridad' => 'Normal'
@@ -114,12 +155,23 @@ class PedidoController extends Controller
 
             $total = 0;
 
+            // Ordenar por producto para bloquear filas siempre en el mismo orden
+            // y evitar deadlocks entre pedidos concurrentes.
+            $items = collect($request->items)->sortBy('producto_id')->values()->all();
+
             // Crear detalles de pedido y descontar stock
-            foreach ($request->items as $item) {
+            foreach ($items as $item) {
                 // Bloquear la fila del producto para evitar condiciones de carrera
                 $producto = Producto::where('id', $item['producto_id'])->lockForUpdate()->first();
                 
-                if (!$producto || $producto->stock < $item['cantidad']) {
+                if (!$producto) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => 'Uno de los productos del pedido ya no existe.'
+                    ], 422);
+                }
+
+                if ($producto->stock < $item['cantidad']) {
                     DB::rollBack();
                     return response()->json([
                         'error' => "Stock insuficiente para el producto '{$producto->nombre}'. Disponible: {$producto->stock}"
@@ -237,6 +289,31 @@ class PedidoController extends Controller
         }
 
         return DB::transaction(function () use ($pedido, $nuevoEstado) {
+            // Re-leer con bloqueo: evita dobles cancelaciones/pagos concurrentes.
+            $pedido = Pedido::lockForUpdate()->find($pedido->id);
+            if (!$pedido) {
+                return response()->json(['error' => 'Pedido no encontrado'], 404);
+            }
+            $pedido->loadMissing('factura');
+
+            // ── Guardia: si ya está en el estado solicitado, retornar sin cambios ──
+            if ($pedido->estado === $nuevoEstado) {
+                return response()->json([
+                    'success' => true,
+                    'pedido_id' => $pedido->id,
+                    'estado' => $pedido->estado,
+                    'message' => 'El pedido ya se encuentra en el estado solicitado.'
+                ]);
+            }
+
+            // ── Guardia: no permitir cancelar un pedido ya cancelado o ya pagado ──
+            if ($nuevoEstado === 'Cancelado' && ($pedido->estado === 'Cancelado' || $pedido->factura)) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'No se puede cancelar un pedido ya cancelado o pagado.',
+                ], 422);
+            }
+
             $dataUpdate = ['estado' => $nuevoEstado];
 
             if ($nuevoEstado === 'En_Preparacion') {
@@ -250,13 +327,13 @@ class PedidoController extends Controller
                 $dataUpdate['hora_listo'] = Carbon::now();
             } elseif ($nuevoEstado === 'Entregado') {
                 $dataUpdate['hora_entregado'] = Carbon::now();
-                // Liberar la mesa
-                if ($pedido->mesa_id) {
+                // Liberar la mesa solo si no quedan otros pedidos pendientes de pago
+                if ($pedido->mesa_id && !Pedido::mesaTienePendientes($pedido->mesa_id, $pedido->id)) {
                     Mesa::where('id', $pedido->mesa_id)->update(['estado' => 'Disponible', 'timer_inicio' => null]);
                 }
             } elseif ($nuevoEstado === 'Cancelado') {
-                // Liberar la mesa si se cancela
-                if ($pedido->mesa_id) {
+                // Liberar la mesa si se cancela (solo si no quedan otros pendientes)
+                if ($pedido->mesa_id && !Pedido::mesaTienePendientes($pedido->mesa_id, $pedido->id)) {
                     Mesa::where('id', $pedido->mesa_id)->update(['estado' => 'Disponible', 'timer_inicio' => null]);
                 }
                 // Restaurar el stock de los productos cancelados con bloqueo

@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Reserva;
 use App\Models\Cliente;
 use App\Models\Mesa;
+use App\Models\Usuario;
 use App\Models\AuditoriaReserva;
 use App\Models\NotificacionCliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 /**
@@ -77,28 +81,76 @@ class ReservaController extends Controller
 
 
         try {
-            // Verificar que la mesa no tenga otra reserva Confirmada en el mismo horario
+            return DB::transaction(function () use ($validated, $request) {
+            // Verificar que la mesa exista y no esté ocupada (con bloqueo)
+            $mesa = Mesa::lockForUpdate()->find($validated['mesa_id']);
+            if (!$mesa) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'La mesa seleccionada no existe.',
+                ], 422);
+            }
+
+            if ($mesa->estado === 'Ocupada') {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'La mesa seleccionada está ocupada en este momento.',
+                ], 422);
+            }
+
+            // Verificar conflicto de horario: ventana de 3 horas por reserva.
+// Las Pendientes también bloquean: si no, se genera overbooking silencioso
+            // (una Pendiente + una Confirmada en la misma mesa y horario).
+            $fechaHora = Carbon::parse($validated['fecha'] . ' ' . $validated['hora'] . ':00');
             $conflicto = Reserva::where('mesa_id', $validated['mesa_id'])
-                ->where('estado', 'Confirmada')
-                ->whereDate('fecha_hora', $validated['fecha'])
+                ->whereIn('estado', ['Pendiente', 'Confirmada'])
+                ->whereBetween('fecha_hora', [
+                    $fechaHora->copy()->subMinutes(180),
+                    $fechaHora->copy()->addMinutes(180),
+                ])
+                ->lockForUpdate()
                 ->first();
 
             if ($conflicto) {
                 return response()->json([
                     'success' => false,
-                    'error'   => 'La mesa ya tiene una reserva confirmada para esa fecha.',
+                    'error'   => 'La mesa ya tiene una reserva pendiente o confirmada en un horario cercano.',
                 ], 422);
             }
 
-            // Obtener cliente (fallback al primer cliente disponible para el panel admin)
-            $cliente = Cliente::first();
+            // Obtener cliente: busco por nombre exacto primero; si no coincide,
+            // crear el cliente real (inactivo: no puede iniciar sesión) en vez de
+            // atribuir la reserva a un cliente aleatorio, que corrompía reportes.
+            $cliente = Cliente::whereHas('usuario', function ($q) use ($validated) {
+                $q->whereRaw('LOWER(TRIM(CONCAT(COALESCE(nombres,""), " ", COALESCE(apellidos,"")))) = ?', [strtolower(trim($validated['nombre']))]);
+            })->first();
 
             if (!$cliente) {
-                Log::warning('[ReservaController@store] No hay clientes en la DB — no se puede crear reserva.');
-                return response()->json([
-                    'success' => false,
-                    'error'   => 'No hay clientes registrados en el sistema.',
-                ], 422);
+                $partes = explode(' ', trim($validated['nombre']), 2);
+                $base = Str::slug($partes[0], '') ?: 'cliente';
+                $email = null;
+                for ($i = 0; $i < 5; $i++) {
+                    $candidato = 'reserva.' . strtolower($base) . rand(100, 999) . '@saborapueblo.com';
+                    if (!Usuario::where('email', $candidato)->exists()) {
+                        $email = $candidato;
+                        break;
+                    }
+                }
+                if (!$email) {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'No se pudo registrar el cliente de la reserva. Intente de nuevo.',
+                    ], 422);
+                }
+                $usuarioNuevo = Usuario::create([
+                    'nombres'   => $partes[0],
+                    'apellidos' => $partes[1] ?? '',
+                    'email'     => $email,
+                    'password'  => Hash::make(Str::password(16)),
+                    'rol_id'    => \App\Models\Role::where('name', 'Cliente')->value('id') ?? 1,
+                    'activo'    => false,
+                ]);
+                $cliente = Cliente::create(['usuario_id' => $usuarioNuevo->id]);
             }
 
             // Construir las notas con el nombre del cliente
@@ -109,13 +161,16 @@ class ReservaController extends Controller
 
             // ── Crear la reserva en la DB ─────────────────────────────────────────
             $reserva = Reserva::create([
-                'cliente_id'  => $cliente->id,
-                'mesa_id'     => $validated['mesa_id'],
-                'fecha_hora'  => $validated['fecha'] . ' ' . $validated['hora'] . ':00',
-                'num_personas'=> $validated['personas'],
-                'estado'      => 'Confirmada',
-                'notas'       => $notasCompletas,
+                'cliente_id'   => $cliente->id,
+                'mesa_id'      => $validated['mesa_id'],
+                'fecha_hora'   => $validated['fecha'] . ' ' . $validated['hora'] . ':00',
+                'num_personas' => $validated['personas'],
+                'estado'       => 'Confirmada',
+                'notas'        => $notasCompletas,
             ]);
+
+            // Marcar la mesa como Reservada
+            $mesa->update(['estado' => 'Reservada']);
 
             // ── Log de confirmación ───────────────────────────────────────────────
             Log::info('[ReservaController@store] ✅ Reserva creada', [
@@ -137,6 +192,7 @@ class ReservaController extends Controller
                     'estado'      => $reserva->estado,
                 ],
             ], 201);
+            });
 
         } catch (\Exception $e) {
             Log::error('[ReservaController@store] ❌ Error al crear reserva: ' . $e->getMessage(), [
@@ -195,18 +251,51 @@ class ReservaController extends Controller
         ]);
 
         try {
-            // Verificar conflicto de mesa si cambia mesa, fecha u hora
-            $nuevaFechaHora = $validated['fecha'] . ' ' . $validated['hora'] . ':00';
-            $conflicto = Reserva::where('mesa_id', $validated['mesa_id'])
-                ->where('estado', 'Confirmada')
-                ->where('id', '!=', $reserva->id)
-                ->whereDate('fecha_hora', $validated['fecha'])
-                ->first();
-
-            if ($conflicto && $validated['estado'] === 'Confirmada') {
+            return DB::transaction(function () use ($validated, $reserva) {
+            // Re-leer con bloqueo: evita editar una reserva recién cancelada/completada
+            $reserva = Reserva::lockForUpdate()->find($reserva->id);
+            if (!$reserva) {
+                return response()->json(['success' => false, 'error' => 'La reserva ya no existe.'], 404);
+            }
+            if (in_array($reserva->estado, ['Cancelada', 'Completada'])) {
                 return response()->json([
                     'success' => false,
-                    'error'   => 'La mesa ya tiene otra reserva confirmada para esa fecha.',
+                    'error' => 'No se pueden modificar reservas con estado ' . $reserva->estado . '.'
+                ], 422);
+            }
+
+            // Verificar conflicto de horario si pasa a Confirmada (ventana de 3 horas)
+            $nuevaFechaHora = $validated['fecha'] . ' ' . $validated['hora'] . ':00';
+            $fechaHora = Carbon::parse($nuevaFechaHora);
+            $conflicto = Reserva::where('mesa_id', $validated['mesa_id'])
+                ->whereIn('estado', ['Pendiente', 'Confirmada'])
+                ->where('id', '!=', $reserva->id)
+                ->whereBetween('fecha_hora', [
+                    $fechaHora->copy()->subMinutes(180),
+                    $fechaHora->copy()->addMinutes(180),
+                ])
+                ->lockForUpdate()
+                ->first();
+
+            if ($conflicto && in_array($validated['estado'], ['Pendiente', 'Confirmada'])) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'La mesa ya tiene otra reserva pendiente o confirmada en un horario cercano.',
+                ], 422);
+            }
+
+            // Verificar que la mesa nueva exista y no esté ocupada (con bloqueo)
+            $mesaNueva = Mesa::lockForUpdate()->find($validated['mesa_id']);
+            if (!$mesaNueva) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'La mesa seleccionada no existe.',
+                ], 422);
+            }
+            if ($mesaNueva->estado === 'Ocupada') {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'La mesa seleccionada está ocupada en este momento.',
                 ], 422);
             }
 
@@ -227,6 +316,33 @@ class ReservaController extends Controller
                 'estado'      => $validated['estado'],
                 'notas'       => $notasCompletas,
             ]);
+
+            // ── Sincronizar estado de las mesas ──────────────────────────────────
+            if ($valoresAnteriores['mesa_id'] != $reserva->mesa_id && $valoresAnteriores['estado'] === 'Confirmada') {
+                $mesaAnterior = Mesa::find($valoresAnteriores['mesa_id']);
+                if ($mesaAnterior && $mesaAnterior->estado === 'Reservada' &&
+                    !Reserva::where('mesa_id', $mesaAnterior->id)
+                        ->where('estado', 'Confirmada')
+                        ->where('id', '!=', $reserva->id)
+                        ->exists()
+                ) {
+                    $mesaAnterior->update(['estado' => 'Disponible']);
+                }
+            }
+
+            if ($validated['estado'] === 'Confirmada') {
+                $mesaNueva->update(['estado' => 'Reservada']);
+            } elseif ($valoresAnteriores['estado'] === 'Confirmada') {
+                // Cancelada o Completada: liberar la mesa si ya no tiene reservas confirmadas
+                if ($mesaNueva->estado === 'Reservada' &&
+                    !Reserva::where('mesa_id', $mesaNueva->id)
+                        ->where('estado', 'Confirmada')
+                        ->where('id', '!=', $reserva->id)
+                        ->exists()
+                ) {
+                    $mesaNueva->update(['estado' => 'Disponible']);
+                }
+            }
 
             // Auditoría
             $usuarioAdmin = Auth::user();
@@ -263,6 +379,7 @@ class ReservaController extends Controller
                 'message' => 'Reserva actualizada y cliente notificado.',
                 'reserva' => $reserva
             ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('[ReservaController@update] Error al editar reserva: ' . $e->getMessage());
@@ -295,6 +412,7 @@ class ReservaController extends Controller
         }
 
         try {
+            return DB::transaction(function () use ($reserva, $id) {
             $valoresAnteriores = $reserva->toArray();
             $clienteNombre = $reserva->cliente && $reserva->cliente->usuario 
                 ? $reserva->cliente->usuario->nombres . ' ' . $reserva->cliente->usuario->apellidos 
@@ -307,6 +425,22 @@ class ReservaController extends Controller
                     $clienteNombre = trim($matches[1]);
                 }
             }
+
+            // Liberar la mesa si quedó marcada como Reservada y no tiene otras reservas confirmadas
+            if ($reserva->mesa_id) {
+                $mesaReserva = Mesa::lockForUpdate()->find($reserva->mesa_id);
+                if ($mesaReserva && $mesaReserva->estado === 'Reservada' &&
+                    !Reserva::where('mesa_id', $mesaReserva->id)
+                        ->where('estado', 'Confirmada')
+                        ->where('id', '!=', $reserva->id)
+                        ->exists()
+                ) {
+                    $mesaReserva->update(['estado' => 'Disponible']);
+                }
+            }
+
+            // Eliminar la reserva primero: si falla, no quedan auditorías ni avisos fantasma
+            $reserva->delete();
 
             // Auditoría de Eliminación
             $usuarioAdmin = Auth::user();
@@ -334,15 +468,13 @@ class ReservaController extends Controller
                 'estado' => 'Enviada'
             ]);
 
-            // Eliminar la reserva
-            $reserva->delete();
-
             Log::info("[ReservaController@destroy] Reserva #{$id} eliminada por Admin: " . ($usuarioAdmin ? $usuarioAdmin->email : 'system'));
 
             return response()->json([
                 'success' => true,
                 'message' => 'Reserva eliminada con éxito y cliente notificado del cambio.'
             ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('[ReservaController@destroy] Error al eliminar reserva: ' . $e->getMessage());

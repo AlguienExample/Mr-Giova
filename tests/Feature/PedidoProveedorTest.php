@@ -16,10 +16,12 @@ class PedidoProveedorTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $rolAdminId;
+
     public function setUp(): void
     {
         parent::setUp();
-        Role::create(['id' => 1, 'name' => 'Administrador', 'description' => 'Admin']);
+        $this->rolAdminId = Role::firstOrCreate(['name' => 'Administrador'], ['description' => 'Admin'])->id;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -31,7 +33,7 @@ class PedidoProveedorTest extends TestCase
             'apellidos' => 'Test',
             'email'     => 'admin_pp_test@mrgiova.com',
             'password'  => Hash::make('secret123'),
-            'rol_id'    => 1,
+            'rol_id'    => $this->rolAdminId,
             'activo'    => true,
         ]);
 

@@ -35,16 +35,32 @@
         </div>
         <ul class="admin-nav">
             <li class="admin-nav-item active">
-                <a href="#"><i class="fa-solid fa-cash-register"></i> Control de Mesas</a>
+                <a href="#"><i class="fa-solid fa-border-all"></i> Control de Mesas</a>
+            </li>
+            <li class="admin-nav-item">
+                <a href="#" onclick="abrirHistorial(event)"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Pagos</a>
             </li>
             <li class="admin-nav-item">
                 <a href="/admin"><i class="fa-solid fa-chart-line"></i> Panel Admin</a>
             </li>
+            <li class="admin-nav-item">
+                <a href="/admin"><i class="fa-solid fa-file-invoice-dollar"></i> Reportes &amp; Cierres</a>
+            </li>
         </ul>
+
+        {{-- Cajero info --}}
+        <div class="cajero-footer">
+            <div class="cajero-avatar">{{ strtoupper(substr(Auth::user()->name ?? 'C', 0, 2)) }}</div>
+            <div class="cajero-info">
+                <div class="cajero-name">{{ Auth::user()->name ?? 'Cajero' }}</div>
+                <div class="cajero-sub">Caja 01 · Principal</div>
+            </div>
+        </div>
+
         <div class="admin-sidebar-footer">
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="btn-black" style="display:flex; justify-content:center; align-items:center; width:100%; border:none; cursor:pointer; padding:12px;">
+                <button type="submit" class="btn-black" style="display:flex; justify-content:center; align-items:center; gap:8px; width:100%; border:none; cursor:pointer; padding:12px;">
                     <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
                 </button>
             </form>
@@ -81,15 +97,20 @@
                 <!-- Mapa de Mesas -->
                 <div class="mesas-area">
                     <div class="filter-bar">
-                        <div class="content-title" style="margin:0;font-size:15px;">Planta Principal</div>
+                        {{-- Zone tabs --}}
+                        <div class="zona-tabs">
+                            <div class="zona-tab active">Planta Principal</div>
+                            <div class="zona-tab">Terraza Jardín</div>
+                            <div class="zona-tab">Barra Alta</div>
+                        </div>
                         <div style="flex:1;"></div>
                         <label class="toggle-pill active" id="pillFiltroJornada" onclick="toggleFiltroJornada(this)">
                             <i class="fa-solid fa-calendar-day"></i>
-                            Solo activas hoy
+                            Solo Activas Hoy
                         </label>
                         <label class="toggle-pill" id="pillTodasMesas" onclick="toggleFiltroJornada(null)">
                             <i class="fa-solid fa-border-all"></i>
-                            Ver todas
+                            Ver Todas (<span id="count-ver-todas">{{ count($mesas) }}</span>)
                         </label>
                     </div>
 
@@ -100,7 +121,7 @@
                                 $textoEstado  = 'Disponible';
                                 $labelClass   = '';
                                 $iconEstado   = '';
-                                $esActiva     = in_array($mesa['estado'], ['Ocupada','Cuenta','Reservada']);
+                                $esActiva     = in_array($mesa['estado'], ['Ocupada','Reservada']);
                                 $tienePedidoHoy = $mesa['tiene_pedido_hoy'];
 
                                 if ($mesa['estado'] === 'Ocupada') {
@@ -108,11 +129,6 @@
                                     $textoEstado = 'Ocupada';
                                     $labelClass  = 'ocupada';
                                     $iconEstado  = '<i class="fa-solid fa-circle-dot" style="color:var(--gold-dark);margin-right:3px;"></i>';
-                                } elseif ($mesa['estado'] === 'Cuenta') {
-                                    $claseEstado = 'estado-cuenta';
-                                    $textoEstado = 'Cuenta';
-                                    $labelClass  = 'cuenta';
-                                    $iconEstado  = '<i class="fa-solid fa-file-invoice-dollar" style="color:#D32F2F;margin-right:3px;"></i>';
                                 } elseif ($mesa['estado'] === 'Reservada') {
                                     $claseEstado = 'estado-reservada';
                                     $textoEstado = 'Reservada';
@@ -140,58 +156,102 @@
                                  data-tiene-pedido="{{ $tienePedidoHoy ? '1' : '0' }}"
                                  onclick="seleccionarMesa({{ $mesa['id'] }}, '{{ str_pad($mesa['numero_mesa'], 2, '0', STR_PAD_LEFT) }}')">
                                 {!! $alertaTiempo !!}
-                                <div class="mesa-num">{{ str_pad($mesa['numero_mesa'], 2, '0', STR_PAD_LEFT) }}</div>
-                                <div class="mesa-status-label {{ $labelClass }}">{!! $iconEstado !!}{{ $textoEstado }}</div>
-                                <div style="font-size:10px;color:var(--gray-400);margin-top:4px;">{{ $mesa['capacidad'] }} pax</div>
-                                @if($tienePedidoHoy && $mesa['total_pedido'] > 0)
-                                    <div style="font-size:10px;color:var(--gold-dark);margin-top:3px;font-weight:700;">
-                                        {{ number_format($mesa['total_pedido'], 0, ',', '.') }}
+
+                                {{-- Top: number + status --}}
+                                <div class="mesa-card-top">
+                                    <div class="mesa-num">{{ str_pad($mesa['numero_mesa'], 2, '0', STR_PAD_LEFT) }}</div>
+                                    <div class="mesa-status-label {{ $labelClass }}">{{ $textoEstado }}</div>
+                                </div>
+
+                                {{-- Meta: pax + timer --}}
+                                <div class="mesa-card-meta">
+                                    <div class="pax">
+                                        <i class="fa-solid fa-user"></i>
+                                        {{ $mesa['capacidad'] }} pax
                                     </div>
+                                    @if($mesa['minutos_ocupada'] !== null)
+                                        <div class="timer">
+                                            <i class="fa-regular fa-clock"></i>
+                                            {{ $mesa['minutos_ocupada'] }}m
+                                        </div>
+                                    @endif
+                                </div>
+
+                                {{-- Amount or no-command --}}
+                                @if($tienePedidoHoy && $mesa['total_pedido'] > 0)
+                                    <div class="mesa-card-amount">
+                                        <div class="label">Por cobrar</div>
+                                        <div class="amount">$ {{ number_format($mesa['total_pedido'], 0, ',', '.') }}</div>
+                                    </div>
+                                @else
+                                    <div class="no-cmd">Sin comanda</div>
                                 @endif
                             </div>
                         @endforeach
                     </div>
+
+                    @if(count($paraLlevar) > 0)
+                        <div class="content-title" style="margin:22px 0 12px;font-size:15px;">
+                            <i class="fa-solid fa-bag-shopping"></i> Mostrador / Para llevar
+                        </div>
+                        <div class="mesas-grid" id="llevarGrid">
+                            @foreach($paraLlevar as $pl)
+                                <div class="mesa-card"
+                                     data-pedido="{{ $pl['pedido_id'] }}"
+                                     onclick="seleccionarPedido({{ $pl['pedido_id'] }})">
+                                    <div class="mesa-card-top">
+                                        <div class="mesa-num"><i class="fa-solid fa-bag-shopping" style="font-size:22px;"></i></div>
+                                        <div class="mesa-status-label">{{ $pl['estado'] }}</div>
+                                    </div>
+                                    <div class="mesa-card-meta">
+                                        <div class="pax">Pedido #{{ str_pad($pl['pedido_id'], 4, '0', STR_PAD_LEFT) }}</div>
+                                        <div class="pax">{{ $pl['items'] }} ítems</div>
+                                    </div>
+                                    <div class="mesa-card-amount">
+                                        <div class="label">Por cobrar</div>
+                                        <div class="amount">$ {{ number_format($pl['total'], 0, ',', '.') }}</div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
-                <!-- Panel de Ticket -->
-                <div class="ticket-panel thermal-ticket">
+                <!-- Panel de Ticket (POS) -->
+                <div class="ticket-panel">
                     <div class="empty-ticket" id="panel-empty">
-                        <i class="fa-solid fa-receipt" style="font-size:2.8rem;margin-bottom:15px;color:var(--gold);opacity:0.4;"></i>
-                        <div style="font-family:var(--font-serif);font-size:18px;margin-bottom:8px;color:var(--gold);">Sin selección</div>
-                        <div style="font-size:12px;color:var(--gray-400);">Selecciona una mesa activa para emitir la pre-cuenta o factura</div>
+                        <i class="fa-solid fa-receipt" style="font-size:2.8rem;"></i>
+                        <div class="empty-title">Sin selección</div>
+                        <div class="empty-sub">Selecciona una mesa activa para emitir la pre-cuenta o cobrar</div>
                     </div>
 
-                    <div id="panel-content" style="display:none;flex-direction:column;height:100%;">
+                    <div id="panel-content" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
                         <div class="ticket-header-brand">
                             <div class="ticket-logo-text"><i class="fa-solid fa-receipt"></i> Sabor a Pueblo POS</div>
-                            <div class="ticket-subtext">COMPROBANTE VIRTUAL DE CONSUMO</div>
+                            <div class="ticket-subtext">COMPROBANTE DE COBRO</div>
                         </div>
 
                         <!-- Header -->
                         <div class="ticket-header">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                                <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text-main);" id="pedido-titulo">Mesa --</div>
-                                <span class="badge badge-pendiente" id="pedido-estado-badge" style="font-size:9px;">ACTIVO</span>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                                <div id="pedido-titulo" style="font-family:var(--font-serif,Georgia,serif);font-size:20px;font-weight:700;">Mesa --</div>
+                                <span class="badge badge-pendiente" id="pedido-estado-badge">EN COBRO</span>
                             </div>
-                            <div style="font-size:11px;color:var(--gray-400);" id="pedido-info">Pedido #---</div>
-                            <!-- Alerta de tiempo en mesa -->
-                            <div id="alerta-permanencia" style="display:none;margin-top:8px;padding:6px 10px;background:#FFF3CD;border:1px solid #FFECB5;border-radius:6px;font-size:11px;color:#856404;font-weight:600;">
+                            <div id="pedido-info" style="font-size:11px;">Pedido #---</div>
+                            <div id="alerta-permanencia" style="display:none;margin-top:8px;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;">
                                 <i class="fa-solid fa-triangle-exclamation"></i> <span id="alerta-permanencia-text"></span>
                             </div>
                         </div>
 
-                        <!-- Tabs -->
-                        <div style="padding:12px 20px 0;">
-                            <div class="ticket-tabs">
-                                <div class="ticket-tab active" id="tab-cuenta" onclick="switchTicketTab('cuenta')">
-                                    <i class="fa-solid fa-receipt"></i> Cuenta
-                                </div>
-                                <div class="ticket-tab" id="tab-propina" onclick="switchTicketTab('propina')">
-                                    <i class="fa-solid fa-hand-holding-dollar"></i> Propina
-                                </div>
-                                <div class="ticket-tab" id="tab-dividir" onclick="switchTicketTab('dividir')">
-                                    <i class="fa-solid fa-users"></i> Dividir
-                                </div>
+                        <div class="ticket-tabs">
+                            <div class="ticket-tab active" id="tab-cuenta" onclick="switchTicketTab('cuenta')">
+                                <i class="fa-solid fa-list-ul"></i> Cuenta
+                            </div>
+                            <div class="ticket-tab" id="tab-propina" onclick="switchTicketTab('propina')">
+                                <i class="fa-solid fa-hand-holding-dollar"></i> Propina
+                            </div>
+                            <div class="ticket-tab" id="tab-dividir" onclick="switchTicketTab('dividir')">
+                                <i class="fa-solid fa-users"></i> Dividir
                             </div>
                         </div>
 
@@ -243,31 +303,121 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Footer con totales y acciones -->
                         <div class="ticket-footer">
                             <div class="total-row"><span>Subtotal</span><span id="txt-subtotal">$0</span></div>
-                            <div class="total-row"><span>IVA (10%)</span><span id="txt-iva">$0</span></div>
+                            <div class="total-row"><span>IVA / Impoconsumo (10%)</span><span id="txt-iva">$0</span></div>
                             <div class="total-row" id="row-propina" style="display:none;">
-                                <span style="color:var(--gold-dark);"><i class="fa-solid fa-hand-holding-dollar"></i> Propina (<span id="lbl-pct">0</span>%)</span>
+                                <span><i class="fa-solid fa-hand-holding-dollar" style="color:var(--pos-gold);"></i> Propina (<span id="lbl-pct">0</span>%)</span>
                                 <span id="txt-propina-footer">$0</span>
                             </div>
-                            <div class="total-row gran-total"><span>TOTAL</span><span id="txt-total">$0</span></div>
+                            <div class="total-row gran-total"><span>TOTAL A PAGAR</span><span id="txt-total">$0</span></div>
 
-                            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
-                                <button class="btn-black" style="width:100%;padding:10px;" onclick="imprimirPreCuenta()">
-                                    <i class="fa-solid fa-print"></i>&nbsp; Imprimir Pre-Cuenta
+                            <!-- Método de pago y cambio -->
+                            <div class="pago-section" id="pago-section">
+                                <div class="pago-section-label">
+                                    <i class="fa-solid fa-credit-card" style="color:var(--pos-gold);"></i> MÉTODO DE PAGO
+                                </div>
+                                <div class="metodo-pago-grid">
+                                    <div class="metodo-btn active" data-metodo="Efectivo" onclick="selectMetodoPago('Efectivo')">
+                                        <i class="fa-solid fa-money-bill-wave"></i>Efectivo
+                                    </div>
+                                    <div class="metodo-btn" data-metodo="Tarjeta" onclick="selectMetodoPago('Tarjeta')">
+                                        <i class="fa-solid fa-credit-card"></i>Tarjeta
+                                    </div>
+                                    <div class="metodo-btn" data-metodo="Transferencia" onclick="selectMetodoPago('Transferencia')">
+                                        <i class="fa-solid fa-building-columns"></i>Transferencia
+                                    </div>
+                                    <div class="metodo-btn" data-metodo="Billetera_Digital" onclick="selectMetodoPago('Billetera_Digital')">
+                                        <i class="fa-solid fa-wallet"></i>Billetera Digital
+                                    </div>
+                                </div>
+                                <div class="efectivo-box" id="efectivo-box">
+                                    <div class="efectivo-header">
+                                        <label>EFECTIVO RECIBIDO</label>
+                                        <span class="teclado-badge">Teclado Activo</span>
+                                    </div>
+                                    <div class="efectivo-input-wrap">
+                                        <span class="currency-sym">$</span>
+                                        <input type="number" id="input-recibido" min="0" step="1000" placeholder="0" oninput="actualizarCambio(); marcarQuickBtn(this.value)">
+                                    </div>
+                                    <div class="quick-amounts">
+                                        <div class="quick-btn" onclick="setMonto(0)">Exacto</div>
+                                        <div class="quick-btn" id="qb-30k" onclick="setMonto(30000)">$30k</div>
+                                        <div class="quick-btn" id="qb-50k" onclick="setMonto(50000)">$50k</div>
+                                        <div class="quick-btn" id="qb-100k" onclick="setMonto(100000)">$100k</div>
+                                    </div>
+                                    <div class="cambio-row">
+                                        <div class="cambio-row-left">
+                                            CAMBIO A DEVOLVER
+                                            <span>Entregar al cliente</span>
+                                        </div>
+                                        <strong id="txt-cambio">$0</strong>
+                                    </div>
+                                    <div class="aviso-falta" id="aviso-falta" style="display:none;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> El efectivo recibido es menor al total
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn-cobrar" id="btn-procesar" onclick="procesarPago()">
+                                <i class="fa-solid fa-check"></i> COBRAR E IMPRIMIR TICKET
+                            </button>
+                            <div class="btn-secundarios">
+                                <button class="btn-sec" onclick="imprimirPreCuenta()">
+                                    <i class="fa-solid fa-print"></i> Reimprimir
                                 </button>
-                                <button class="btn-gold" id="btn-procesar" style="width:100%;padding:12px;font-weight:700;letter-spacing:1px;" onclick="procesarPago()">
-                                    <i class="fa-solid fa-credit-card"></i>&nbsp; PROCESAR PAGO
+                                <button class="btn-sec" onclick="enviarWhatsApp()">
+                                    <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
+                        </div>{{-- /ticket-footer --}}
+                    </div>{{-- /panel-content --}}
+                </div>{{-- /ticket-panel --}}
             </div>
         </div>
     </main>
+</div>
+
+<!-- Modal Historial de Pagos -->
+<div class="mrgiova-modal" id="modal-historial">
+    <div class="modal-content" style="max-width:820px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-clock-rotate-left" style="margin-right:8px;"></i>Historial de Pagos</h3>
+            <button class="modal-close-btn" onclick="cerrarHistorial()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="historial-resumen" id="historial-resumen">
+                <div><span>Pagos hoy</span><strong id="hist-count-hoy">0</strong></div>
+                <div><span>Total cobrado</span><strong id="hist-total-hoy">$0</strong></div>
+                <div><span>Efectivo</span><strong id="hist-efectivo">$0</strong></div>
+                <div><span>Otros medios</span><strong id="hist-otros">$0</strong></div>
+            </div>
+            <div style="overflow:auto;max-height:52vh;">
+                <table class="historial-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Mesa</th>
+                            <th>Pedido</th>
+                            <th>Método</th>
+                            <th style="text-align:right;">Total</th>
+                            <th style="text-align:right;">Propina</th>
+                            <th style="text-align:right;">Recibido</th>
+                            <th style="text-align:right;">Cambio</th>
+                            <th>Cajero</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historial-rows">
+                        <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--gray-400);">Cargando...</td></tr>
+                    </tbody>
+                </table>
+                <div id="historial-vacio" style="display:none;text-align:center;padding:30px;color:var(--gray-400);font-size:12px;">
+                    <i class="fa-regular fa-folder-open" style="font-size:1.8rem;margin-bottom:8px;display:block;opacity:0.5;"></i>
+                    Sin pagos registrados
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="{{ asset('js/theme-toggle.js') }}"></script>

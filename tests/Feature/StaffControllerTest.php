@@ -12,13 +12,17 @@ class StaffControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $rolAdminId;
+    private int $rolCocineroId;
+
     public function setUp(): void
     {
         parent::setUp();
 
-        Role::create(['id' => 1, 'name' => 'Administrador', 'description' => 'Admin']);
-        Role::create(['id' => 2, 'name' => 'Cocinero',      'description' => 'Cocina']);
-        Role::create(['id' => 3, 'name' => 'Cajero',        'description' => 'Caja']);
+        // firstOrCreate: la migración ya siembra 'Cajero' y los IDs son dinámicos.
+        $this->rolAdminId = Role::firstOrCreate(['name' => 'Administrador'], ['description' => 'Admin'])->id;
+        $this->rolCocineroId = Role::firstOrCreate(['name' => 'Cocinero'], ['description' => 'Cocina'])->id;
+        Role::firstOrCreate(['name' => 'Cajero'], ['description' => 'Caja']);
     }
 
     private function adminUser(): Usuario
@@ -28,7 +32,7 @@ class StaffControllerTest extends TestCase
             'apellidos' => 'Test',
             'email'     => 'admin@mrgiova.com',
             'password'  => Hash::make('secret'),
-            'rol_id'    => 1,
+            'rol_id'    => $this->rolAdminId,
             'activo'    => true,
         ]);
     }
@@ -49,10 +53,10 @@ class StaffControllerTest extends TestCase
                      'credenciales' => ['email', 'password'],
                  ]);
 
-        // Verificar que el usuario creado tiene el rol Cocinero (id 2)
+        // Verificar que el usuario creado tiene el rol Cocinero
         $this->assertDatabaseHas('usuarios', [
             'nombres' => 'Maria',
-            'rol_id'  => 2,
+            'rol_id'  => $this->rolCocineroId,
         ]);
         
         // Verificar que la contraseña devuelta no es 'haute123'

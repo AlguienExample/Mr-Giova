@@ -11,6 +11,16 @@ const tableId = window.mesaConfig.id;
         let trackingInterval = null;
         let hasPlayedReadySound = false;
         let audioCtx = null;
+        let pollEnCurso = false;
+
+        function escMenu(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function initAudioContext() {
             if (!audioCtx) {
@@ -126,7 +136,7 @@ const tableId = window.mesaConfig.id;
 
                 container.innerHTML += `
                     <div class="category-chip ${activeCategory == cat.id ? 'active' : ''}" id="chip-${cat.id}" onclick="selectCategory(${cat.id})">
-                        <i class="fa-solid ${iconClass}"></i> ${cat.nombre}
+                        <i class="fa-solid ${iconClass}"></i> ${escMenu(cat.nombre)}
                     </div>
                 `;
             });
@@ -245,11 +255,11 @@ const tableId = window.mesaConfig.id;
             card.onclick = () => openProductModal(prod);
             card.innerHTML = `
                 <div class="product-card-img-wrap">
-                    <img src="${img}" class="product-card-img" alt="${prod.nombre}" loading="lazy">
+                    <img src="${escMenu(img)}" class="product-card-img" alt="${escMenu(prod.nombre)}" loading="lazy">
                 </div>
                 <div class="product-card-body">
-                    <h4 class="product-card-name">${prod.nombre}</h4>
-                    <p class="product-card-desc">${prod.descripcion}</p>
+                    <h4 class="product-card-name">${escMenu(prod.nombre)}</h4>
+                    <p class="product-card-desc">${escMenu(prod.descripcion)}</p>
                     <div class="product-card-footer">
                         <span class="product-card-price">${priceFormatted}</span>
                         <button class="product-card-add" type="button" aria-label="Agregar"><i class="fa-solid fa-plus"></i></button>
@@ -442,10 +452,10 @@ const tableId = window.mesaConfig.id;
                 const row = document.createElement('div');
                 row.className = 'cart-item-row';
                 row.innerHTML = `
-                    <img src="${item.imagen_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd'}" alt="${item.nombre}">
+                    <img src="${escMenu(item.imagen_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd')}" alt="${escMenu(item.nombre)}">
                     <div class="cart-item-details">
-                        <div class="cart-item-name">${item.cantidad}x ${item.nombre}</div>
-                        ${item.notas_especiales ? `<div class="cart-item-mod"><i class="fa-solid fa-pencil"></i>${item.notas_especiales}</div>` : ''}
+                        <div class="cart-item-name">${item.cantidad}x ${escMenu(item.nombre)}</div>
+                        ${item.notas_especiales ? `<div class="cart-item-mod"><i class="fa-solid fa-pencil"></i>${escMenu(item.notas_especiales)}</div>` : ''}
                         <div class="cart-item-price">${formattedPrice}</div>
                     </div>
                     <button class="cart-item-delete" type="button" onclick="deleteCartItem(${index})" aria-label="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
@@ -501,6 +511,8 @@ const tableId = window.mesaConfig.id;
                     closeCart();
                     startOrderTracking(data.pedido_id, data.tiempo_estimado);
                     openActiveOrderTracking();
+                    btn.disabled = false;
+                    btn.innerHTML = `Confirmar pedido <i class="fa-solid fa-circle-check"></i>`;
                 } else {
                     alert('Error: ' + (data.error || 'No se pudo enviar el pedido.'));
                     btn.disabled = false;
@@ -570,9 +582,10 @@ const tableId = window.mesaConfig.id;
         }
 
         function pollOrderStatus() {
-            if (!currentOrderTrackingId) return;
+            if (!currentOrderTrackingId || pollEnCurso || document.hidden) return;
+            pollEnCurso = true;
 
-            fetch(`/api/pedidos/${currentOrderTrackingId}`)
+            fetch(`/api/pedidos/${currentOrderTrackingId}`, { headers: { 'Accept': 'application/json' } })
                 .then(res => res.json())
                 .then(order => {
                     if (order.error) {
@@ -657,7 +670,8 @@ const tableId = window.mesaConfig.id;
                         }, 6000);
                     }
                 })
-                .catch(err => console.error("Error al consultar estado del pedido", err));
+                .catch(err => console.error("Error al consultar estado del pedido", err))
+                .finally(() => { pollEnCurso = false; });
         }
 
         function clearTrackingSession() {

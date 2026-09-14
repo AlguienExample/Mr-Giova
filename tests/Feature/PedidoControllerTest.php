@@ -25,11 +25,11 @@ class PedidoControllerTest extends TestCase
     {
         parent::setUp();
 
-        // Create Roles
-        Role::create(['id' => 1, 'name' => 'Administrador']);
-        Role::create(['id' => 2, 'name' => 'Cocinero']);
-        Role::create(['id' => 3, 'name' => 'Cajero']);
-        Role::create(['id' => 4, 'name' => 'Cliente']);
+        // Create Roles (la migración ya siembra 'Cajero': firstOrCreate + IDs dinámicos)
+        $rolAdmin = Role::firstOrCreate(['name' => 'Administrador'], ['description' => 'Admin']);
+        Role::firstOrCreate(['name' => 'Cocinero'], ['description' => 'Cocina']);
+        Role::firstOrCreate(['name' => 'Cajero'], ['description' => 'Caja']);
+        Role::firstOrCreate(['name' => 'Cliente'], ['description' => 'Cliente']);
 
         // Create a Category
         $categoria = Categoria::create(['nombre' => 'Platos Fuertes']);
@@ -57,7 +57,7 @@ class PedidoControllerTest extends TestCase
             'apellidos' => 'Test',
             'email' => 'admin@mrgiova.com',
             'password' => Hash::make('password'),
-            'rol_id' => 1,
+            'rol_id' => $rolAdmin->id,
             'activo' => true
         ]);
         

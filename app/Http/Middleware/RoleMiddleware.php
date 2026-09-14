@@ -49,8 +49,9 @@ class RoleMiddleware
                 return redirect($dashboardCorrecto)->with('warning', 'La sesión activa ha cambiado. Has sido redirigido a tu panel actual.');
             }
 
-            auth()->logout();
-            return redirect('/login')->withErrors(['email' => 'Tu rol actual no tiene permisos para acceder a esta sección.']);
+            // Sin tablero asignado: pasar por el login (que explica el motivo con el
+            // mensaje estándar) en vez de destruir la sesión por sorpresa aquí.
+            return redirect()->route('login');
         }
 
         return $next($request);

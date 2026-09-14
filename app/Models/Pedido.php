@@ -51,4 +51,26 @@ class Pedido extends Model
     {
         return $this->hasMany(DetallePedido::class, 'pedido_id');
     }
+
+    public function factura()
+    {
+        return $this->hasOne(Factura::class, 'pedido_id');
+    }
+
+    /**
+     * ¿La mesa tiene otros pedidos pendientes de pago?
+     * (no cancelados y sin factura registrada).
+     */
+    public static function mesaTienePendientes($mesaId, $exceptPedidoId = null): bool
+    {
+        if (!$mesaId) {
+            return false;
+        }
+
+        return static::where('mesa_id', $mesaId)
+            ->where('estado', '!=', 'Cancelado')
+            ->whereDoesntHave('factura')
+            ->when($exceptPedidoId, fn ($q) => $q->where('id', '!=', $exceptPedidoId))
+            ->exists();
+    }
 }

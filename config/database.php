@@ -58,6 +58,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Zona horaria de la sesión MySQL = zona de la app. Sin esto, las columnas
+            // TIMESTAMP se interpretan en la zona del servidor y los filtros "de hoy"
+            // (whereDate) fallan en el borde de la medianoche.
+            // Offset fijo porque America/Bogota no tiene horario de verano (no requiere
+            // tablas tz en el servidor como sí lo exigiría el nombre de la zona).
+            'timezone' => env('DB_TIMEZONE', '-05:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

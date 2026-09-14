@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sabor a Pueblo — Recuperar Contraseña</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ asset('css/pages/login.css') }}">
+</head>
+<body>
+
+    <div class="kfc-stripe-top"></div>
+
+    <nav class="top-nav">
+        <a href="/" class="brand-logo-wrap">
+            <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" class="brand-logo-img">
+            <div class="brand-name">Sabor<span> a Pueblo</span></div>
+        </a>
+        <div class="admin-portal-tag">
+            <i class="fa-solid fa-shield-halved"></i> Acceso Administración
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="login-card">
+            
+            @if($errors->any())
+                <div class="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>{{ $errors->first() }}</span>
+                </div>
+            @endif
+
+            @if(session('status'))
+                <div class="alert alert-success">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>{{ session('status') }}</span>
+                </div>
+            @endif
+
+            <div class="logo-container">
+                <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" class="logo-img">
+            </div>
+
+            <h1 class="restaurant-name">Sabor<span> a Pueblo</span></h1>
+            <div class="staff-access">
+                <i class="fa-solid fa-fire-burner"></i> Recuperar Contraseña
+            </div>
+
+            <form action="{{ route('password.email') }}" method="POST">
+                @csrf
+                
+                <div class="form-group">
+                    <label class="form-label" for="email">CORREO ELECTRÓNICO</label>
+                    <div class="input-wrapper">
+                        <i class="fa-regular fa-envelope"></i>
+                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="camilojimenez24712@gmail.com" required autofocus>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <a href="{{ route('login') }}" class="forgot-password"><i class="fa-solid fa-arrow-left"></i> Volver al inicio de sesión</a>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    ENVIAR ENLACE DE RECUPERACIÓN <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+
+            <div class="card-footer">
+                <i class="fa-solid fa-utensils"></i> Sistema de Control de Comandas & Gastronomía
+            </div>
+        </div>
+    </div>
+
+    <footer class="page-footer">
+        <div class="copyright">
+            &copy; {{ date('Y') }} Sabor a Pueblo — Restaurante & Parrilla. Todos los derechos reservados.
+        </div>
+        <div class="footer-links">
+            <a href="/menu/mesa/5" target="_blank"><i class="fa-solid fa-receipt"></i> Menú Cliente</a>
+            <a href="/cocina"><i class="fa-solid fa-fire-burner"></i> Cocina</a>
+        </div>
+    </footer>
+
+</body>
+</html>

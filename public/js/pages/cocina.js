@@ -4,6 +4,17 @@ let currentActiveOrders = [];
         let audioCtx = null;
         let lastOrdersJson = '';
         let isDragging = false;
+        let pollEnCurso = false;
+        const cambiosEnCurso = new Set();
+
+        function escCocina(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchActiveOrders();
@@ -54,6 +65,7 @@ let currentActiveOrders = [];
         function toggleSound() {
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('soundToggle');
+            if (!btn) return;
             if (soundEnabled) {
                 btn.classList.remove('muted');
                 btn.innerHTML = `<i class="fa-solid fa-volume-high"></i><span>Sonido activado</span>`;
@@ -99,8 +111,9 @@ let currentActiveOrders = [];
         }
 
         function fetchActiveOrders() {
-            if (isDragging) return;
-            fetch('/api/pedidos/activos')
+            if (isDragging || pollEnCurso || document.hidden) return;
+            pollEnCurso = true;
+            fetch('/api/pedidos/activos', { headers: { 'Accept': 'application/json' } })
                 .then(res => res.json())
                 .then(orders => {
                     detectNewOrders(orders);
@@ -114,7 +127,8 @@ let currentActiveOrders = [];
                     currentActiveOrders = orders;
                     renderKanban();
                 })
-                .catch(err => console.error("Error al obtener pedidos activos", err));
+                .catch(err => console.error("Error al obtener pedidos activos", err))
+                .finally(() => { pollEnCurso = false; });
         }
 
         function detectNewOrders(newOrders) {
@@ -186,7 +200,8 @@ let currentActiveOrders = [];
 
                 let itemsHtml = '';
                 order.detalles.forEach(det => {
-                    itemsHtml += `<li class="order-item"><span class="order-item-qty">${det.cantidad}x</span> ${det.producto.nombre}</li>`;
+                    const prodNombre = det.producto ? det.producto.nombre : 'Producto';
+                    itemsHtml += `<li class="order-item"><span class="order-item-qty">${det.cantidad}x</span> ${escCocina(prodNombre)}</li>`;
                 });
 
                 card.innerHTML = `
@@ -225,13 +240,14 @@ let currentActiveOrders = [];
 
             let itemsHtml = '';
             order.detalles.forEach(det => {
-                itemsHtml += `<li class="order-item"><span class="order-item-qty">${det.cantidad}x</span> ${det.producto.nombre}</li>`;
+                const prodNombre = det.producto ? det.producto.nombre : 'Producto';
+                itemsHtml += `<li class="order-item"><span class="order-item-qty">${det.cantidad}x</span> ${escCocina(prodNombre)}</li>`;
                 if (det.notas_especiales) {
-                    itemsHtml += `<li class="order-item-note"><i class="fa-solid fa-pencil"></i>${det.notas_especiales}</li>`;
+                    itemsHtml += `<li class="order-item-note"><i class="fa-solid fa-pencil"></i>${escCocina(det.notas_especiales)}</li>`;
                 }
             });
 
-            const noteSection = order.notas ? `<div class="order-card-note">${order.notas}</div>` : '';
+            const noteSection = order.notas ? `<div class="order-card-note">${escCocina(order.notas)}</div>` : '';
 
             let actionBtn = '';
             if (order.estado === 'Nuevo') {
@@ -283,6 +299,9 @@ let currentActiveOrders = [];
         }
 
         function changeState(pedidoId, nuevoEstado) {
+            // Anti doble-submit: ignora si ya hay un cambio en curso para este pedido
+            if (cambiosEnCurso.has(pedidoId)) return;
+            cambiosEnCurso.add(pedidoId);
             if (nuevoEstado === 'Entregado') {
                 const orderObj = currentActiveOrders.find(o => o.id === pedidoId);
                 if (orderObj) {
@@ -308,7 +327,8 @@ let currentActiveOrders = [];
                     fetchActiveOrders();
                 } else alert('Error actualizando estado.');
             })
-            .catch(err => console.error("Error al actualizar estado", err));
+            .catch(err => console.error("Error al actualizar estado", err))
+            .finally(() => cambiosEnCurso.delete(pedidoId));
         }
 
         function showKitchenToast(message) {

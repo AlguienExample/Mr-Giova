@@ -75,7 +75,7 @@
                     <label class="form-label" for="email">CORREO ELECTRÓNICO</label>
                     <div class="input-wrapper">
                         <i class="fa-regular fa-envelope"></i>
-                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@mrgiova.com" required autofocus>
+                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@saborapueblo.com" required autofocus>
                     </div>
                 </div>
 
@@ -92,7 +92,7 @@
                         <input type="checkbox" name="remember" id="remember">
                         Recordarme
                     </label>
-                    <a href="#" class="forgot-password">¿Olvidó su contraseña?</a>
+                    <a href="{{ route('password.request') }}" class="forgot-password">¿Olvidó su contraseña?</a>
                 </div>
 
                 @if(session('sesion_activa'))
