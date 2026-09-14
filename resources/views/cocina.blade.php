@@ -5,8 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sabor a Pueblo - Panel de Cocina</title>
     <link rel="stylesheet" href="{{ asset('css/cocina.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        try {
+            if (localStorage.getItem('sabor-theme') === 'light') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.body.classList.add('light-mode');
+                });
+            }
+        } catch (e) {}
+    </script>
 </head>
 <body class="kitchen-page">
     <div class="kfc-stripe-top"></div>
@@ -58,6 +68,9 @@
                     </div>
                 </div>
                 <div class="kitchen-header-actions">
+                    <button class="theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+                        <i class="fa-solid fa-sun"></i>
+                    </button>
                     <div class="flame-sizzle-badge">
                         <i class="fa-solid fa-fire-flame-curved"></i> Fuego al Carbón
                     </div>
@@ -122,6 +135,7 @@
         <span id="toastText">¡Nuevo pedido recibido!</span>
     </div>
 
+    <script src="{{ asset('js/theme-toggle.js') }}"></script>
     <script src="{{ asset('js/pages/cocina.js') }}"></script>
 </body>
 </html>

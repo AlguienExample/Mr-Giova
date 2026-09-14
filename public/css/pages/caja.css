@@ -246,3 +246,105 @@
             background: var(--black);
             color: var(--white);
         }
+
+        /* ═══════════════════════════════════════════════════
+           RESPONSIVE ANDROID — Terminal de Caja
+           (solo agregados; no se altera el diseño base)
+           ═══════════════════════════════════════════════════ */
+        @media (max-width: 992px) {
+            .caja-grid {
+                grid-template-columns: 1fr;
+                height: auto;
+                overflow: visible;
+                gap: 16px;
+            }
+            .mesas-area {
+                overflow: visible;
+            }
+            .ticket-panel {
+                height: auto;
+                max-height: none;
+                position: static;
+            }
+            .ticket-body {
+                max-height: 50vh;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .admin-header-actions {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .admin-header-actions > div:last-child {
+                flex-wrap: wrap;
+                gap: 10px;
+                font-size: 10px;
+            }
+            .filter-bar {
+                gap: 8px;
+                margin-bottom: 14px;
+            }
+            .filter-bar .content-title {
+                width: 100%;
+                margin-bottom: 4px;
+            }
+            .toggle-pill {
+                font-size: 10px;
+                padding: 8px 12px;
+                min-height: 40px;
+            }
+            .ticket-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .ticket-tabs::-webkit-scrollbar {
+                display: none;
+            }
+            .ticket-tab {
+                white-space: nowrap;
+                flex-shrink: 0;
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+            .ticket-header,
+            .ticket-body,
+            .ticket-footer {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mesas-grid {
+                grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+                gap: 10px;
+            }
+            .mesa-card {
+                padding: 14px 8px 12px;
+            }
+            .mesa-num {
+                font-size: 22px;
+            }
+            .tip-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .tip-btn {
+                min-height: 44px;
+                font-size: 13px;
+            }
+            .split-num-btn {
+                width: 44px;
+                height: 44px;
+            }
+            .total-row.gran-total {
+                font-size: 16px;
+            }
+            .ticket-body {
+                max-height: none;
+            }
+            .empty-ticket {
+                padding: 32px 16px;
+            }
+        }

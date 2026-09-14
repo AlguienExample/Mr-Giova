@@ -56,6 +56,11 @@ class DatabaseSeeder extends Seeder
             'description' => 'Toma pedidos presenciales y gestiona mesas'
         ]);
 
+        $rolCajero = Role::create([
+            'name' => 'Cajero',
+            'description' => 'Gestiona cobros y facturación en terminal de caja'
+        ]);
+
         $rolCliente = Role::create([
             'name' => 'Cliente',
             'description' => 'Comensal del restaurante'
@@ -105,6 +110,21 @@ class DatabaseSeeder extends Seeder
             'cargo' => 'Mesero Principal',
             'fecha_contratacion' => Carbon::now()->subMonths(3),
             'sueldo' => 1500000.00
+        ]);
+
+        $userCajero = Usuario::create([
+            'nombres' => 'Caja',
+            'apellidos' => 'Principal',
+            'email' => 'caja@mrgiova.com',
+            'password' => Hash::make('caja123'),
+            'rol_id' => $rolCajero->id,
+            'activo' => true,
+        ]);
+        Empleado::create([
+            'usuario_id' => $userCajero->id,
+            'cargo' => 'Cajero Principal',
+            'fecha_contratacion' => Carbon::now()->subMonths(3),
+            'sueldo' => 1600000.00
         ]);
 
         // Clientes recurrentes y genéricos

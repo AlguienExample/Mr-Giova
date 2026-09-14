@@ -859,3 +859,117 @@ body.kitchen-page {
     animation: flame-burn 1.5s infinite alternate;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE ANDROID — Tablero de Cocina
+   (solo agregados; no se altera el diseño base)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+    }
+
+    .kitchen-app {
+        height: 100dvh;
+    }
+
+    /* La página hace scroll; las columnas crecen de forma natural */
+    .kitchen-main {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .kitchen-board {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        overflow: visible;
+    }
+
+    .kitchen-column {
+        min-height: 0;
+        max-height: none;
+    }
+
+    .kitchen-cards {
+        overflow: visible;
+        max-height: none;
+    }
+
+    .kitchen-header {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--header-h);
+        padding-top: 10px;
+        padding-bottom: 10px;
+        row-gap: 8px;
+    }
+
+    .kitchen-header-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Botones de comanda a todo ancho con área táctil mínima */
+    .order-card-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .order-card-footer .btn-kfc {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px;
+        font-size: 12px;
+    }
+
+    .kitchen-toast {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .flame-sizzle-badge {
+        display: none;
+    }
+
+    .kitchen-user-badge {
+        display: none;
+    }
+
+    .kitchen-header-title h1 {
+        font-size: 19px;
+    }
+
+    .kitchen-board {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .kitchen-column-header {
+        padding: 12px;
+    }
+
+    .kitchen-column-title {
+        font-size: 13px;
+    }
+
+    .order-card {
+        padding: 12px;
+    }
+
+    .order-card-top {
+        flex-wrap: wrap;
+    }
+
+    .order-card-id {
+        font-size: 16px;
+    }
+
+    .order-card-meta {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+}
+

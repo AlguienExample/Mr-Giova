@@ -5,8 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sabor a Pueblo - Menú del Cliente</title>
     <link rel="stylesheet" href="{{ asset('css/menu-client.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        try {
+            if (localStorage.getItem('sabor-theme') === 'light') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.body.classList.add('light-mode');
+                });
+            }
+        } catch (e) {}
+    </script>
 </head>
 <body class="menu-page">
     <div class="kfc-stripe-top"></div>
@@ -22,6 +32,9 @@
                     </div>
                 </div>
                 <div class="menu-header-actions">
+                    <button class="theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+                        <i class="fa-solid fa-sun"></i>
+                    </button>
                     <div class="menu-table-badge" id="tableBadge">
                         Mesa {{ $mesa->numero_mesa }}
                     </div>
@@ -325,6 +338,7 @@
             numero_mesa: '{{ $mesa->numero_mesa }}'
         };
     </script>
+    <script src="{{ asset('js/theme-toggle.js') }}"></script>
     <script src="{{ asset('js/pages/menu.js') }}"></script>
 </body>
 </html>

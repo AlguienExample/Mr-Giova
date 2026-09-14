@@ -12,6 +12,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="{{ asset('css/pages/login.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
+    <script>
+        try {
+            if (localStorage.getItem('sabor-theme') === 'light') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.body.classList.add('light-mode');
+                });
+            }
+        } catch (e) {}
+    </script>
 </head>
 <body>
 
@@ -22,8 +32,13 @@
             <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" class="brand-logo-img">
             <div class="brand-name">Sabor<span> a Pueblo</span></div>
         </a>
-        <div class="admin-portal-tag">
-            <i class="fa-solid fa-shield-halved"></i> Acceso Administración
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div class="admin-portal-tag">
+                <i class="fa-solid fa-shield-halved"></i> Acceso Administración
+            </div>
+            <button class="theme-toggle-btn theme-toggle-wide" type="button" onclick="toggleTheme()" aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+                <i class="fa-solid fa-sun"></i><span class="theme-label">Claro</span>
+            </button>
         </div>
     </nav>
 
@@ -60,7 +75,7 @@
                     <label class="form-label" for="email">CORREO ELECTRÓNICO</label>
                     <div class="input-wrapper">
                         <i class="fa-regular fa-envelope"></i>
-                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@saborapueblo.com" required autofocus>
+                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@mrgiova.com" required autofocus>
                     </div>
                 </div>
 
@@ -115,5 +130,6 @@
         </div>
     </footer>
 
+    <script src="{{ asset('js/theme-toggle.js') }}"></script>
 </body>
 </html>

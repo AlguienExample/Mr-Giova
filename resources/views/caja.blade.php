@@ -5,8 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sabor a Pueblo — Terminal de Caja & POS</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        try {
+            if (localStorage.getItem('sabor-theme') === 'light') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.body.classList.add('light-mode');
+                });
+            }
+        } catch (e) {}
+    </script>
     <link rel="stylesheet" href="{{ asset('css/pages/caja.css') }}">
 </head>
 <body class="admin-page">
@@ -55,6 +65,9 @@
                 <div class="content-subtitle" style="margin-top:5px;margin-left:16px;">Gestión de cobros, recibos térmicos y comandas en tiempo real.</div>
             </div>
             <div class="admin-header-actions" style="display:flex;gap:20px;align-items:center;">
+                <button class="theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+                    <i class="fa-solid fa-sun"></i>
+                </button>
                 <div style="display:flex;gap:16px;font-size:11px;text-transform:uppercase;letter-spacing:1px;align-items:center;">
                     <div><span class="led-dot disponible"></span>Libres: <strong id="count-libres">{{ $libres }}</strong></div>
                     <div><span class="led-dot ocupada"></span>Ocupadas: <strong id="count-ocupadas">{{ $ocupadas }}</strong></div>
@@ -257,6 +270,7 @@
     </main>
 </div>
 
+<script src="{{ asset('js/theme-toggle.js') }}"></script>
 <script src="{{ asset('js/pages/caja.js') }}"></script>
 </body>
 </html>

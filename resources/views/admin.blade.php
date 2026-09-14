@@ -6,7 +6,17 @@
     <title>Sabor a Pueblo — Panel Administrativo</title>
     <meta name="description" content="Panel de administración de Sabor a Pueblo: ventas, cocina, reservas, inventario, mesas y personal.">
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        try {
+            if (localStorage.getItem('sabor-theme') === 'light') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.body.classList.add('light-mode');
+                });
+            }
+        } catch (e) {}
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Exportadores corporativos -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -112,10 +122,13 @@
                 </div>
             </div>
             <div class="admin-header-actions">
+                <button class="theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+                    <i class="fa-solid fa-sun"></i>
+                </button>
                 <div style="display:flex; align-items:center; gap:12px; border-left:1px solid var(--border); padding-left:20px;">
                     <div style="text-align:right;">
                         <strong style="display:block; font-size:13px; color:var(--black);"><i class="fa-solid fa-user-shield" style="color:var(--gold);margin-right:4px;"></i> Administrador</strong>
-                        <span style="font-size:11px; color:var(--gray-400);">admin@saborapueblo.com</span>
+                        <span style="font-size:11px; color:var(--gray-400);">admin@mrgiova.com</span>
                     </div>
                     <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); display:flex; align-items:center; justify-content:center; color:var(--white); font-weight:700; font-family:var(--font-serif); font-size:16px;">
                         A
@@ -1033,6 +1046,7 @@
 <!-- ═══════════════════════════════════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════════════════════════════════ -->
+<script src="{{ asset('js/theme-toggle.js') }}"></script>
 <script src="{{ asset('js/pages/admin.js') }}"></script>
 
 <!-- ── Modal: Crear / Editar Producto ── -->

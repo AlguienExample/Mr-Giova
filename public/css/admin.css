@@ -1201,3 +1201,131 @@ table.haute-table tbody tr:last-child td { border-bottom: none; }
     box-shadow: 0 0 8px #8B5CF6;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE ANDROID — Panel Admin / Caja
+   (solo agregados; no se altera el diseño base)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+    .admin-content { padding: 24px; }
+    .admin-header { padding: 0 24px; }
+    .mesas-map { padding: 24px; min-height: 420px; }
+}
+
+@media (max-width: 768px) {
+    html, body { overflow-x: hidden; }
+
+    .admin-app { height: 100dvh; }
+
+    /* Sidebar → barra superior compacta y fija */
+    .admin-sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+    }
+    .admin-sidebar-brand { padding: 10px 14px; }
+    .admin-sidebar-brand img { width: 32px !important; height: 32px !important; }
+    .admin-sidebar-brand h2 { font-size: 16px !important; }
+    .admin-sidebar-brand .subtitle { display: none; }
+    .admin-nav {
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .admin-nav::-webkit-scrollbar { display: none; }
+    .admin-nav-item { scroll-snap-align: start; flex-shrink: 0; }
+    .admin-nav-item a { white-space: nowrap; min-height: 44px; }
+
+    /* Mantener el cierre de sesión accesible en móvil */
+    .admin-sidebar-footer {
+        display: block;
+        padding: 8px 12px;
+        border-top: 1px solid var(--border);
+    }
+    .admin-sidebar-footer .btn-black {
+        padding: 10px 12px;
+        font-size: 11px;
+        min-height: 44px;
+    }
+
+    /* Header adaptable */
+    .admin-header {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        column-gap: 12px;
+    }
+    .admin-header-title h1 { font-size: 17px; }
+    .admin-header .badge-parrilla-gold,
+    #pageSubtitle { display: none; }
+    /* Solo el bloque de usuario del admin (tiene border-left); no afecta los contadores de caja */
+    .admin-header-actions > div[style*="border-left"] > div:first-child { display: none; }
+    .admin-header-actions { gap: 8px; }
+    .floating-money-bill { font-size: 10px; padding: 4px 10px; }
+
+    /* Contenido y títulos */
+    .content-title { font-size: 22px; }
+    .dashboard-lower-grid { grid-template-columns: 1fr; }
+    .card-value { font-size: 24px; }
+
+    /* Plano de mesas */
+    .mesas-map {
+        padding: 16px;
+        min-height: 380px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .mesa-detail-card { position: static; padding: 20px; }
+
+    /* Tablas con scroll horizontal suave */
+    .panel-box {
+        -webkit-overflow-scrolling: touch;
+        border-radius: var(--radius-sm);
+    }
+    table.haute-table { font-size: 12px; }
+    .haute-table th, .haute-table td { padding: 10px 12px; }
+
+    /* Buscadores y filtros a todo ancho */
+    .search-bar { width: 100%; min-height: 44px; }
+    .inv-toolbar .inv-select { flex: 1 1 45%; min-height: 44px; }
+
+    /* Formularios en una columna */
+    .form-row { flex-direction: column; gap: 0; }
+
+    /* Modales seguros en pantalla pequeña */
+    .mrgiova-modal { padding: 10px; }
+    .mrgiova-modal .modal-content { max-height: 94dvh; }
+    .modal-header { padding: 16px 18px; }
+    .modal-header h3 { font-size: 17px; }
+    .modal-body { padding: 18px; }
+    .modal-close-btn { width: 40px; height: 40px; }
+
+    /* Área táctil mínima en botones y paginación */
+    .btn-black, .btn-gold, .btn-outline, .btn-danger { min-height: 44px; }
+    .page-btn { width: 40px; height: 40px; }
+    .pagination-bar { justify-content: center; }
+
+    .staff-card { padding: 20px 16px; }
+}
+
+@media (max-width: 480px) {
+    .admin-content { padding: 14px; }
+    .admin-header { padding: 10px 14px; }
+    .admin-header-title h1 { font-size: 16px; }
+    .floating-money-container { display: none; }
+
+    .dashboard-grid { gap: 10px; }
+    .dashboard-card { padding: 14px; }
+    .card-value { font-size: 22px; }
+
+    .mesas-map { padding: 12px; min-height: 340px; }
+    .mesa-item { width: 64px; height: 64px; font-size: 11px; }
+
+    .payment-methods-grid { grid-template-columns: repeat(2, 1fr); }
+    .btn-pay-method { min-height: 56px; }
+
+    .inv-toolbar .inv-select { flex: 1 1 100%; }
+    .staff-grid { grid-template-columns: 1fr; }
+
+    #toastContainer { left: 10px; right: 10px; }
+    .ticket-panel.thermal-ticket { border-radius: var(--radius-sm); }
+}
+
