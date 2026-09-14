@@ -12,14 +12,23 @@ class AuthControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $rolAdminId;
+    private int $rolCajeroId;
+
     public function setUp(): void
     {
         parent::setUp();
-        
-        // Crear roles
-        Role::create(['id' => 1, 'name' => 'Administrador', 'description' => 'Admin']);
-        Role::create(['id' => 2, 'name' => 'Cocinero', 'description' => 'Cocina']);
-        Role::create(['id' => 3, 'name' => 'Cajero', 'description' => 'Caja']);
+
+        // firstOrCreate: la migración ya siembra 'Cajero' y los IDs son dinámicos.
+        $this->rolAdminId = Role::firstOrCreate(
+            ['name' => 'Administrador'],
+            ['description' => 'Admin']
+        )->id;
+        Role::firstOrCreate(['name' => 'Cocinero'], ['description' => 'Cocina']);
+        $this->rolCajeroId = Role::firstOrCreate(
+            ['name' => 'Cajero'],
+            ['description' => 'Caja']
+        )->id;
     }
 
     public function test_cajero_is_redirected_to_caja_after_login()
@@ -27,14 +36,14 @@ class AuthControllerTest extends TestCase
         $cajero = Usuario::create([
             'nombres' => 'Cajero',
             'apellidos' => 'Prueba',
-            'email' => 'cajero@mrgiova.com',
+            'email' => 'test@saborapueblo.com',
             'password' => Hash::make('password'),
-            'rol_id' => 3, // Cajero
+            'rol_id' => $this->rolCajeroId, // Cajero
             'activo' => true,
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'cajero@mrgiova.com',
+            'email' => 'test@saborapueblo.com',
             'password' => 'password',
         ]);
 
@@ -47,14 +56,14 @@ class AuthControllerTest extends TestCase
         $admin = Usuario::create([
             'nombres' => 'Admin',
             'apellidos' => 'Prueba',
-            'email' => 'admin@mrgiova.com',
+            'email' => 'camilojimenez24712@gmail.com',
             'password' => Hash::make('password'),
-            'rol_id' => 1, // Admin
+            'rol_id' => $this->rolAdminId, // Admin
             'activo' => true,
         ]);
 
         $response = $this->post('/login', [
-            'email' => 'admin@mrgiova.com',
+            'email' => 'camilojimenez24712@gmail.com',
             'password' => 'password',
         ]);
 
@@ -67,8 +76,8 @@ class AuthControllerTest extends TestCase
             'nombres'   => 'Admin',
             'apellidos' => 'Block',
             'email'     => 'admin.block@mrgiova.com',
-            'password'  => \Illuminate\Support\Facades\Hash::make('password'),
-            'rol_id'    => 1,
+'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'rol_id'    => $this->rolAdminId,
             'activo'    => true,
         ]);
 
@@ -101,8 +110,8 @@ class AuthControllerTest extends TestCase
             'nombres'   => 'Admin',
             'apellidos' => 'Force',
             'email'     => 'admin.force@mrgiova.com',
-            'password'  => \Illuminate\Support\Facades\Hash::make('password'),
-            'rol_id'    => 1,
+'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'rol_id'    => $this->rolAdminId,
             'activo'    => true,
         ]);
 

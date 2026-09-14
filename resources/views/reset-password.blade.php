@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Sabor a Pueblo — Portal de Acceso Personal</title>
+    <title>Sabor a Pueblo — Restablecer Contraseña</title>
     
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,65 +37,38 @@
                 </div>
             @endif
 
-            @if(session('success'))
-                <div class="alert alert-success">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span>{{ session('success') }}</span>
-                </div>
-            @endif
-
             <div class="logo-container">
                 <img src="{{ asset('Imagenes/logo.png') }}" alt="Sabor a Pueblo Logo" class="logo-img">
             </div>
 
             <h1 class="restaurant-name">Sabor<span> a Pueblo</span></h1>
             <div class="staff-access">
-                <i class="fa-solid fa-fire-burner"></i> Restaurante & Parrilla — Staff
+                <i class="fa-solid fa-fire-burner"></i> Restablecer Contraseña
             </div>
 
-            <form action="/login" method="POST">
+            <form action="{{ route('password.update') }}" method="POST">
                 @csrf
+                <input type="hidden" name="token" value="{{ $token }}">
+                <input type="hidden" name="email" value="{{ request()->query('email') }}">
                 
                 <div class="form-group">
-                    <label class="form-label" for="email">CORREO ELECTRÓNICO</label>
+                    <label class="form-label" for="password">NUEVA CONTRASEÑA</label>
                     <div class="input-wrapper">
-                        <i class="fa-regular fa-envelope"></i>
-                        <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="camilojimenez24712@gmail.com" required autofocus>
+                        <i class="fa-solid fa-lock"></i>
+                        <input class="form-control" type="password" id="password" name="password" placeholder="••••••••" required autofocus>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="password">CONTRASEÑA</label>
+                    <label class="form-label" for="password_confirmation">CONFIRMAR CONTRASEÑA</label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-lock"></i>
-                        <input class="form-control" type="password" id="password" name="password" placeholder="••••••••" required>
+                        <input class="form-control" type="password" id="password_confirmation" name="password_confirmation" placeholder="••••••••" required>
                     </div>
                 </div>
-
-                <div class="form-options">
-                    <label class="remember-me">
-                        <input type="checkbox" name="remember" id="remember">
-                        Recordarme
-                    </label>
-                    <a href="{{ route('password.request') }}" class="forgot-password">¿Olvidó su contraseña?</a>
-                </div>
-
-                @if(session('sesion_activa'))
-                <div class="alert alert-warning sesion-activa-warning">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div class="sesion-activa-body">
-                        <strong>Sesión activa detectada</strong>
-                        <p>Se detectó una sesión activa con esta cuenta en otro dispositivo. Para continuar, confirma que deseas cerrar esa sesión e iniciar aquí.</p>
-                        <label class="sesion-activa-confirm">
-                            <input type="checkbox" name="forzar_sesion" value="1" required id="forzar_sesion">
-                            <span>Confirmo que quiero cerrar la sesión activa en el otro dispositivo e iniciar sesión aquí. <strong>Vuelve a escribir tu contraseña.</strong></span>
-                        </label>
-                    </div>
-                </div>
-                @endif
 
                 <button type="submit" class="btn-login">
-                    INICIAR SESIÓN <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    RESTABLECER CONTRASEÑA <i class="fa-solid fa-check"></i>
                 </button>
             </form>
 

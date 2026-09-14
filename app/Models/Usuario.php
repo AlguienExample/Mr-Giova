@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Notifications\ResetPasswordNotification;
 
 class Usuario extends Authenticatable
 {
@@ -25,6 +26,7 @@ class Usuario extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'session_token',
     ];
 
     protected function casts(): array
@@ -48,5 +50,16 @@ class Usuario extends Authenticatable
     public function empleado()
     {
         return $this->hasOne(Empleado::class, 'usuario_id');
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

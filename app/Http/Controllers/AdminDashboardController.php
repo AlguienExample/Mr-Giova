@@ -17,9 +17,16 @@ class AdminDashboardController extends Controller
     {
         // ── Fecha dinámica desde el dispositivo del administrador ─────────────
         // Si el cliente envía su fecha local, la usamos; si no, fallback al servidor.
-        $fechaReferencia = $request->has('current_date') && $request->current_date
-            ? Carbon::parse($request->current_date)
-            : Carbon::now();
+        // El parseo va protegido: un valor corrupto no debe tumbar el endpoint (el
+        // dashboard lo consulta cada 7 segundos).
+        $fechaReferencia = Carbon::now();
+        if ($request->filled('current_date')) {
+            try {
+                $fechaReferencia = Carbon::parse($request->current_date);
+            } catch (\Throwable $e) {
+                $fechaReferencia = Carbon::now();
+            }
+        }
 
         $hoy  = $fechaReferencia->copy()->startOfDay();
         $ayer = $hoy->copy()->subDay();
@@ -101,18 +108,20 @@ class AdminDashboardController extends Controller
 
         // 3. Productos Premium (join en vez de N+1)
         $catPremium = Categoria::where('nombre', 'Premium & Delicatessen')->first();
-        $premiumProducts = [];
+        $premiumQuery = Producto::query()
+            ->leftJoin('detalle_pedido', 'productos.id', '=', 'detalle_pedido.producto_id')
+            ->select('productos.nombre', DB::raw('COALESCE(SUM(detalle_pedido.cantidad), 0) as cantidad'))
+            ->groupBy('productos.id', 'productos.nombre')
+            ->orderByDesc('cantidad');
+
         if ($catPremium) {
-            $premiumProducts = Producto::where('categoria_id', $catPremium->id)
-                ->leftJoin('detalle_pedidos', 'productos.id', '=', 'detalle_pedidos.producto_id')
-                ->select('productos.nombre', DB::raw('COALESCE(SUM(detalle_pedidos.cantidad), 0) as cantidad'))
-                ->groupBy('productos.id', 'productos.nombre')
-                ->orderByDesc('cantidad')
-                ->take(5)
-                ->get()
-                ->map(fn($p) => ['nombre' => $p->nombre, 'cantidad' => (int) $p->cantidad])
-                ->toArray();
+            $premiumQuery->where('productos.categoria_id', $catPremium->id);
         }
+
+        $premiumProducts = $premiumQuery->take(5)
+            ->get()
+            ->map(fn($p) => ['nombre' => $p->nombre, 'cantidad' => (int) $p->cantidad])
+            ->toArray();
 
         // 4. Inventario crítico
         $alertasStock = Producto::where('stock', '<=', 10)->count();
@@ -146,7 +155,8 @@ class AdminDashboardController extends Controller
     public function getMesasEstado()
     {
         // Pre-cargar IDs de mesas con pedidos activos en UNA sola query (evita N+1)
-        $mesasConPedidoActivo = Pedido::whereIn('estado', ['Nuevo', 'En_Preparacion'])
+        // Incluye Listo: igual que cocina y caja, un pedido listo sigue ocupando la mesa.
+        $mesasConPedidoActivo = Pedido::whereIn('estado', ['Nuevo', 'En_Preparacion', 'Listo'])
             ->distinct()
             ->pluck('mesa_id')
             ->toArray();
@@ -159,6 +169,8 @@ class AdminDashboardController extends Controller
                 'estado' => $m->estado,
                 'codigo_qr' => $m->codigo_qr,
                 'ubicacion' => $m->ubicacion,
+                'pos_x' => $m->pos_x !== null ? (float) $m->pos_x : null,
+                'pos_y' => $m->pos_y !== null ? (float) $m->pos_y : null,
                 'zona' => $m->zona ?? 'Principal',
                 'timer_inicio' => $m->timer_inicio,
                 'pedido_en_preparacion' => in_array($m->id, $mesasConPedidoActivo),
@@ -190,12 +202,15 @@ class AdminDashboardController extends Controller
     public function updateMesaCoordenadas(Request $request, $id)
     {
         $request->validate([
-            'x' => 'required|numeric',
-            'y' => 'required|numeric'
+            'x' => 'required|numeric|min:0|max:100',
+            'y' => 'required|numeric|min:0|max:100'
         ]);
         
         $mesa = Mesa::findOrFail($id);
-        $mesa->ubicacion = json_encode(['x' => $request->x, 'y' => $request->y]);
+        // Las coordenadas van en columnas dedicadas: `ubicacion` (texto humano)
+        // queda intacta.
+        $mesa->pos_x = round($request->x, 2);
+        $mesa->pos_y = round($request->y, 2);
         $mesa->save();
         
         return response()->json(['success' => true]);
@@ -203,8 +218,48 @@ class AdminDashboardController extends Controller
 
     public function storeComanda(Request $request)
     {
-        // Simulacion de comanda manual para mesa
-        return response()->json(['success' => true]);
+        $validated = $request->validate([
+            'mesa_numero' => 'required|integer|min:1|max:999',
+            'accion'      => 'required|in:abrir,cerrar',
+        ]);
+
+        $mesa = Mesa::where('numero_mesa', $validated['mesa_numero'])->first();
+        if (!$mesa) {
+            return response()->json(['success' => false, 'error' => 'Mesa no encontrada.'], 404);
+        }
+
+        if ($validated['accion'] === 'abrir') {
+            if (!in_array($mesa->estado, ['Disponible', 'Mantenimiento'])) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => "La mesa {$mesa->numero_mesa} ya está {$mesa->estado}.",
+                ], 422);
+            }
+            $mesa->update(['estado' => 'Ocupada', 'timer_inicio' => now()]);
+            $mensaje = "Mesa {$mesa->numero_mesa} abierta correctamente.";
+        } else {
+            // Cerrar: solo mesas ocupadas y sin pedidos pendientes de pago.
+            if ($mesa->estado !== 'Ocupada') {
+                return response()->json([
+                    'success' => false,
+                    'error'   => "La mesa {$mesa->numero_mesa} no está ocupada.",
+                ], 422);
+            }
+            if (Pedido::mesaTienePendientes($mesa->id)) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => "La mesa {$mesa->numero_mesa} tiene pedidos pendientes. Cóbralos en caja primero.",
+                ], 422);
+            }
+            $mesa->update(['estado' => 'Disponible', 'timer_inicio' => null]);
+            $mensaje = "Mesa {$mesa->numero_mesa} cerrada correctamente.";
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $mensaje,
+            'mesa'    => ['id' => $mesa->id, 'numero_mesa' => $mesa->numero_mesa, 'estado' => $mesa->estado],
+        ]);
     }
 
     public function getMesaPedidoActivo($num)
@@ -213,7 +268,8 @@ class AdminDashboardController extends Controller
         if (!$mesa) return response()->json(['error' => 'Mesa no encontrada'], 404);
 
         $pedido = Pedido::where('mesa_id', $mesa->id)
-            ->whereIn('estado', ['Nuevo', 'En_Preparacion', 'Listo', 'Entregado'])
+            ->whereIn('estado', ['Nuevo', 'En_Preparacion', 'Listo'])
+            ->whereDoesntHave('factura')
             ->orderBy('created_at', 'desc')
             ->first();
             

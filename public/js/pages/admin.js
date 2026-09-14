@@ -14,9 +14,9 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 }
 
-/** Headers estándar para peticiones JSON */
+/** Headers estándar para peticiones JSON (Accept obliga respuestas JSON, no HTML) */
 function jsonHeaders() {
-    return { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() };
+    return { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken() };
 }
 
 /** Wrapper para peticiones fetch con cabeceras JSON por defecto */
@@ -151,10 +151,18 @@ document.querySelectorAll('.mrgiova-modal').forEach(modal => {
 window.addEventListener('DOMContentLoaded', () => {
     // Cargar dashboard al inicio
     fetchStats();
-    
-    // Conexión simulada en tiempo real (Event-driven poll cada 7 segundos para platos premium y KPIs)
+
+    // Polling con protecciones: no solapar peticiones, pausar en pestaña oculta
+    // y backoff de 30s si el servidor falla en bucle.
+    let statsEnCurso = false;
+    let statsBackoffHasta = 0;
     setInterval(() => {
-        fetchStats();
+        if (document.hidden || statsEnCurso || Date.now() < statsBackoffHasta) return;
+        statsEnCurso = true;
+        Promise.resolve()
+            .then(() => fetchStats())
+            .catch(() => { statsBackoffHasta = Date.now() + 30000; })
+            .finally(() => { statsEnCurso = false; });
     }, 7000);
 
     // Precargar mesas para el selector de reservas
@@ -312,6 +320,7 @@ function fetchReservas() {
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('reservasList');
+            window._reservasCache = Array.isArray(data) ? data : [];
 
             const header = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
@@ -340,39 +349,39 @@ function fetchReservas() {
 
             data.forEach(r => {
                 const vipBadge  = r.is_vip ? `<span class="vip-badge">VIP Elite</span>` : '';
-                const noteHtml  = r.notas  ? `<div class="res-note">"${r.notas}"</div>` : '';
+                const noteHtml  = r.notas  ? `<div class="res-note">"${escHtml(r.notas)}"</div>` : '';
                 const mesaNum   = r.mesa_numero ? r.mesa_numero.toString().padStart(2, '0') : '--';
 
                 let stBadge;
                 if (r.estado === 'Confirmada')  stBadge = `<span class="badge badge-optimo">✓ Confirmada</span>`;
                 else if (r.estado === 'Pendiente') stBadge = `<span class="badge badge-pendiente">Pendiente</span>`;
                 else if (r.estado === 'Cancelada') stBadge = `<span class="badge badge-critico">Cancelada</span>`;
-                else stBadge = `<span class="badge badge-neutral">${r.estado}</span>`;
+                else stBadge = `<span class="badge badge-neutral">${escHtml(r.estado)}</span>`;
 
                 // Extraer nombre del cliente desde las notas
-                let clienteDisplay = r.cliente_nombre;
+                let clienteDisplay = r.cliente_nombre || '';
                 const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
                 if (matchNota) clienteDisplay = matchNota[1].trim();
 
                 container.innerHTML += `
                     <div class="reservation-card">
                         <div class="res-time">
-                            ${r.hora}
-                            <small>Mesa ${mesaNum}</small>
+                            ${escHtml(r.hora)}
+                            <small>Mesa ${escHtml(mesaNum)}</small>
                         </div>
                         <div class="res-details" style="flex:1;">
-                            <div class="res-name">${clienteDisplay} ${vipBadge}</div>
+                            <div class="res-name">${escHtml(clienteDisplay)} ${vipBadge}</div>
                             <div class="res-meta">
-                                <span><i class="fa-solid fa-user-group"></i> ${r.num_personas} Comensales</span>
+                                <span><i class="fa-solid fa-user-group"></i> ${Number(r.num_personas) || 0} Comensales</span>
                                 ${stBadge}
                             </div>
                             ${noteHtml}
                         </div>
                         <div style="display:flex; flex-direction:column; gap:6px; margin-left:12px;">
-                            <button class="btn-outline" style="padding:5px 10px; font-size:11px;" onclick="abrirEditarReserva(${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Editar reserva">
+                            <button class="btn-outline" style="padding:5px 10px; font-size:11px;" onclick="abrirEditarReservaPorId(${r.id})" title="Editar reserva">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            <button class="btn-danger" style="padding:5px 10px; font-size:11px;" onclick="abrirEliminarReserva(${r.id}, '${clienteDisplay.replace(/'/g,"\\'")}'  , '${r.estado}')" title="Eliminar reserva">
+                            <button class="btn-danger" style="padding:5px 10px; font-size:11px;" onclick="abrirEliminarReserva(${r.id})" title="Eliminar reserva">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
@@ -474,7 +483,12 @@ function fetchMesas() {
             ];
 
             data.forEach((m, idx) => {
-                const pos = positions[idx] || { x: 50, y: 50 };
+                // Usar la posición guardada por arrastre; si no hay, fallback por índice.
+                const tienePos = m.pos_x !== null && m.pos_x !== undefined
+                    && m.pos_y !== null && m.pos_y !== undefined;
+                const pos = tienePos
+                    ? { x: parseFloat(m.pos_x), y: parseFloat(m.pos_y) }
+                    : (positions[idx] || { x: 50, y: 50 });
                 const estadoClass = m.estado.toLowerCase();
 
                 const div = document.createElement('div');
@@ -500,12 +514,12 @@ function fetchMesas() {
 
                 // Iniciales o primer nombre del mesero asignado
                 const waiterStr = m.empleado_nombre 
-                    ? `<span style="font-size:8px; background:rgba(255,255,255,0.25); padding:1px 3px; border-radius:3px; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Mesero: ${m.empleado_nombre}">${m.empleado_nombre.split(' ')[0]}</span>`
+                    ? `<span style="font-size:8px; background:rgba(255,255,255,0.25); padding:1px 3px; border-radius:3px; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Mesero: ${escHtml(m.empleado_nombre)}">${escHtml(m.empleado_nombre.split(' ')[0])}</span>`
                     : '';
 
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between; width:100%; font-size:8px; opacity:0.8;">
-                        <span>${m.zona}</span>
+                        <span>${escHtml(m.zona)}</span>
                         ${prepStr}
                     </div>
                     <strong style="font-family:var(--font-serif); font-size:16px;">${m.numero_mesa.toString().padStart(2,'0')}</strong>
@@ -627,12 +641,17 @@ function setupMesaDrag(mesaDiv, m) {
             if (isDragging) {
                 const x = mesaDiv.getAttribute('data-x');
                 const y = mesaDiv.getAttribute('data-y');
-                if (x && y) {
+                // Solo un guardado en vuelo por mesa y con manejo de error visible.
+                if (x && y && !mesaDiv.hasAttribute('data-saving')) {
+                    mesaDiv.setAttribute('data-saving', '1');
                     fetch(`/api/admin/mesas/${m.id}/coordenadas`, {
                         method: 'PUT',
                         headers: jsonHeaders(),
                         body: JSON.stringify({ x: parseFloat(x), y: parseFloat(y) }),
-                    });
+                    })
+                    .then(r => { if (!r.ok) throw new Error('save-failed'); })
+                    .catch(() => showToast('Error', 'No se pudo guardar la posición de la mesa.', 'error'))
+                    .finally(() => mesaDiv.removeAttribute('data-saving'));
                 }
                 setTimeout(() => mesaDiv.setAttribute('data-dragging', 'false'), 50);
             }
@@ -647,6 +666,11 @@ function showMesaDetail(num, estado, cap, zona = 'Principal', empleadoNombre = n
     document.getElementById('md-cap').textContent = `${cap} Pax`;
     document.getElementById('md-zona').textContent = zona;
     document.getElementById('md-personal').textContent = empleadoNombre || 'Ninguno';
+
+    // Contexto para el modal de comanda
+    window._comandaMesa = { num, estado };
+    const comandaLabel = document.getElementById('comandaMesaNum');
+    if (comandaLabel) comandaLabel.textContent = num.toString().padStart(2, '0');
 
     const btnFactura = document.getElementById('btnMesaFactura');
     if (estado === 'Ocupada') {
@@ -669,11 +693,12 @@ function showMesaDetail(num, estado, cap, zona = 'Principal', empleadoNombre = n
 // ─────────────────────────────────────────────────────────────────────────────
 
 function fetchStaff() {
-    fetch('/api/admin/staff')
+    fetch('/api/admin/staff', { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(data => {
             const grid = document.getElementById('staffGrid');
             grid.innerHTML = '';
+            window._staffCache = Array.isArray(data) ? data : [];
             if (!data || data.length === 0) {
                 grid.innerHTML = '<div class="table-empty">No hay personal registrado.</div>';
                 return;
@@ -685,11 +710,19 @@ function fetchStaff() {
 
                 grid.innerHTML += `
                     <div class="staff-card">
-                        <div class="staff-avatar"><img src="${img}" alt="${e.cargo || 'Staff'}"></div>
-                        <div class="staff-name">${e.nombre || 'Sin nombre'}</div>
-                        <div class="staff-role">${e.cargo || 'Sin cargo'}</div>
+                        <div class="staff-avatar"><img src="${img}" alt="${escHtml(e.cargo || 'Staff')}"></div>
+                        <div class="staff-name">${escHtml(e.nombre || 'Sin nombre')}</div>
+                        <div class="staff-role">${escHtml(e.cargo || 'Sin cargo')}</div>
                         <div style="margin-top:8px;">
                             <span class="badge ${e.activo ? 'badge-optimo' : 'badge-critico'}">${e.activo ? 'Activo' : 'Inactivo'}</span>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:10px;">
+                            <button class="btn-outline" style="flex:1;padding:6px 8px;font-size:11px;" onclick="openEditStaff(${e.id})">
+                                <i class="fa-solid fa-pen"></i> Editar
+                            </button>
+                            <button class="btn-danger" style="padding:6px 10px;font-size:11px;" onclick="openDeleteStaff(${e.id})" title="Eliminar">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -700,6 +733,8 @@ function fetchStaff() {
 
 function submitStaff(e) {
     e.preventDefault();
+    const btn = e.submitter;
+    if (btn) btn.disabled = true;
     const payload = {
         nombres: document.getElementById('staffNombre').value.trim(),
         cargo:   document.getElementById('staffCargo').value,
@@ -725,7 +760,83 @@ function submitStaff(e) {
             showToast('Error', data.error || 'No se pudo registrar el empleado.', 'error');
         }
     })
-    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'));
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => { if (btn) btn.disabled = false; });
+}
+
+/** Abre el modal de edición con los datos del caché */
+function openEditStaff(id) {
+    const e = (window._staffCache || []).find(x => x.id === id);
+    if (!e) {
+        showToast('Error', 'No se encontró el empleado.', 'error');
+        return;
+    }
+    document.getElementById('editStaffId').value = e.id;
+    document.getElementById('editStaffNombre').textContent = e.nombre || '';
+    document.getElementById('editStaffCargo').value = e.cargo || '';
+    document.getElementById('editStaffActivo').value = e.activo ? '1' : '0';
+    openModal('modalStaffEdit');
+}
+
+function submitEditStaff(ev) {
+    ev.preventDefault();
+    const btn = ev.submitter;
+    if (btn) btn.disabled = true;
+    const id = document.getElementById('editStaffId').value;
+    const payload = {
+        cargo:  document.getElementById('editStaffCargo').value,
+        activo: document.getElementById('editStaffActivo').value === '1',
+    };
+
+    fetch(`/api/admin/staff/${id}`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Empleado actualizado', data.message || '', 'success');
+            closeModal('modalStaffEdit');
+            fetchStaff();
+        } else {
+            showToast('Error', data.error || 'No se pudo actualizar.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => { if (btn) btn.disabled = false; });
+}
+
+/** Abre la confirmación de eliminación */
+function openDeleteStaff(id) {
+    const e = (window._staffCache || []).find(x => x.id === id) || {};
+    document.getElementById('eliminarStaffId').value = id;
+    document.getElementById('eliminarStaffNombre').textContent = e.nombre || '';
+    openModal('modalEliminarStaff');
+}
+
+function confirmarEliminarStaff() {
+    const id = document.getElementById('eliminarStaffId').value;
+    if (!id) return;
+    const btn = document.getElementById('btnConfirmarEliminarStaff');
+    if (btn) btn.disabled = true;
+
+    fetch(`/api/admin/staff/${id}`, {
+        method: 'DELETE',
+        headers: jsonHeaders(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Empleado eliminado', data.message || '', 'success');
+            closeModal('modalEliminarStaff');
+            fetchStaff();
+        } else {
+            showToast('Error', data.error || 'No se pudo eliminar.', 'error');
+        }
+    })
+    .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
+    .finally(() => { if (btn) btn.disabled = false; });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -747,7 +858,7 @@ function fetchInsumos() {
             // Actualizar KPIs
             document.getElementById('inv-valor-total').textContent = formatCOP(data.kpis.valor_total);
             document.getElementById('inv-alertas').textContent     = data.kpis.alertas + ' Críticos';
-            document.getElementById('inv-rotacion').textContent    = data.kpis.rotacion;
+            document.getElementById('inv-disponibilidad').textContent = data.kpis.disponibilidad + '%';
             document.getElementById('inv-items').textContent       = data.kpis.items_activos + ' SKU';
 
             _inventoryAll = data.insumos || [];
@@ -854,14 +965,14 @@ function renderInventoryPage() {
         tr.innerHTML = `
             <td>
                 <div class="inv-item-info">
-                    <img src="${img}" class="inv-img" alt="${i.nombre}">
+                    <img src="${img}" class="inv-img" alt="${escHtml(i.nombre)}">
                     <div>
-                        <strong style="display:block; font-size:13px;">${i.nombre}</strong>
+                        <strong style="display:block; font-size:13px;">${escHtml(i.nombre)}</strong>
                         <span style="font-size:11px; color:var(--gray-400);">Mínimo: ${i.stock_minimo} ${i.unidad}</span>
                     </div>
                 </div>
             </td>
-            <td><span class="badge badge-neutral" style="font-weight:600;">${i.categoria.toUpperCase()}</span></td>
+            <td><span class="badge badge-neutral" style="font-weight:600;">${escHtml(i.categoria.toUpperCase())}</span></td>
             <td>${stockStr}</td>
             <td>${precioStr}${calcExtra}</td>
             <td>
@@ -871,9 +982,14 @@ function renderInventoryPage() {
                 </span>
             </td>
             <td>
-                <button class="btn-danger" onclick="eliminarMateriaPrima(${i.id}, '${i.nombre.replace(/'/g, "\\'")}')" title="Eliminar insumo">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div style="display:flex; gap:6px; justify-content:flex-end;">
+                    <button class="btn-outline" onclick="openModalEditarInsumo(${i.id})" title="Editar insumo">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="btn-danger" onclick="eliminarMateriaPrima(${i.id})" title="Eliminar insumo">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -953,13 +1069,50 @@ function calcularPorcion() {
 }
 
 function mostrarCalculadoraMP(id, precio) {
+    openNuevoInsumo();
     document.getElementById('mpCosto').value    = precio;
     document.getElementById('mpCategoria').value = 'Carnes';
     checkCategoriaMP();
-    openModal('modalMateriaPrima');
 }
 
 // ── CRUD de MateriaPrima ──
+
+/** Abre el modal en modo "crear" con el formulario limpio */
+function openNuevoInsumo() {
+    document.getElementById('formMateriaPrima').reset();
+    document.getElementById('mpId').value = '';
+    document.getElementById('mpCalculadoraPorcion').style.display = 'none';
+    document.getElementById('modalMateriaPrimaTitulo').innerHTML =
+        '<i class="fa-solid fa-boxes-stacked" style="color:var(--gold-dark); margin-right:8px;"></i> Nuevo Insumo';
+    document.getElementById('btnSubmitMateriaPrima').innerHTML =
+        '<i class="fa-solid fa-floppy-disk"></i> Guardar Insumo';
+    openModal('modalMateriaPrima');
+}
+
+/** Abre el modal en modo "editar" con los datos del insumo cargados */
+function openModalEditarInsumo(id) {
+    const item = _inventoryAll.find(x => x.id === id);
+    if (!item) { showToast('Error', 'Insumo no encontrado.', 'error'); return; }
+
+    document.getElementById('formMateriaPrima').reset();
+    document.getElementById('mpId').value          = item.id;
+    document.getElementById('mpNombre').value      = item.nombre;
+    document.getElementById('mpCategoria').value   = item.categoria;
+    document.getElementById('mpUnidad').value      = item.unidad;
+    document.getElementById('mpCantidad').value    = item.stock;
+    document.getElementById('mpStockMinimo').value = item.stock_minimo;
+    document.getElementById('mpCosto').value       = item.precio;
+
+    document.querySelectorAll('#formMateriaPrima .form-control').forEach(el => el.classList.remove('error'));
+    document.querySelectorAll('#formMateriaPrima .form-error-text.visible').forEach(el => el.classList.remove('visible'));
+
+    checkCategoriaMP();
+    document.getElementById('modalMateriaPrimaTitulo').innerHTML =
+        `<i class="fa-solid fa-boxes-stacked" style="color:var(--gold-dark); margin-right:8px;"></i> Editar Insumo — ${escHtml(item.nombre)}`;
+    document.getElementById('btnSubmitMateriaPrima').innerHTML =
+        '<i class="fa-solid fa-floppy-disk"></i> Guardar Cambios';
+    openModal('modalMateriaPrima');
+}
 
 function submitMateriaPrima(e) {
     e.preventDefault();
@@ -986,6 +1139,7 @@ function submitMateriaPrima(e) {
     }
 
     const btn = document.getElementById('btnSubmitMateriaPrima');
+    const editId = document.getElementById('mpId').value;
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
 
@@ -998,17 +1152,20 @@ function submitMateriaPrima(e) {
         costo_unitario:  parseFloat(document.getElementById('mpCosto').value),
     };
 
-    fetch('/api/admin/insumos', {
-        method: 'POST',
+    fetch(editId ? `/api/admin/insumos/${editId}` : '/api/admin/insumos', {
+        method: editId ? 'PUT' : 'POST',
         headers: jsonHeaders(),
         body: JSON.stringify(payload),
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showToast('Insumo guardado', `"${payload.nombre}" fue añadido al inventario.`, 'success');
+            showToast(editId ? 'Insumo actualizado' : 'Insumo guardado',
+                editId ? `"${payload.nombre}" fue actualizado correctamente.` : `"${payload.nombre}" fue añadido al inventario.`,
+                'success');
             closeModal('modalMateriaPrima');
             document.getElementById('formMateriaPrima').reset();
+            document.getElementById('mpId').value = '';
             document.getElementById('mpCalculadoraPorcion').style.display = 'none';
             fetchInsumos();
         } else {
@@ -1021,11 +1178,13 @@ function submitMateriaPrima(e) {
     .catch(() => showToast('Error de conexión', 'No se pudo conectar al servidor.', 'error'))
     .finally(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Insumo';
+        btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> ${document.getElementById('mpId').value ? 'Guardar Cambios' : 'Guardar Insumo'}`;
     });
 }
 
-function eliminarMateriaPrima(id, nombre) {
+function eliminarMateriaPrima(id) {
+    const item  = _inventoryAll.find(x => x.id === id);
+    const nombre = item ? item.nombre : `#${id}`;
     if (!confirm(`¿Eliminar el insumo "${nombre}"? Esta acción no se puede deshacer.`)) return;
 
     fetch(`/api/admin/insumos/${id}`, {
@@ -1080,8 +1239,16 @@ function downloadFile(content, filename, type) {
 
 // ── Reposición ──
 
+/** Abre el modal de reposición con el campo de PIN limpio */
+function openReposicionModal() {
+    document.getElementById('formReposicion').reset();
+    openModal('modalReposicion');
+}
+
 function submitReposicion(e) {
     e.preventDefault();
+    const btn = e.submitter;
+    if (btn) btn.disabled = true;
     const pin = document.getElementById('repPin').value;
 
     fetch('/api/admin/insumos/pedido', {
@@ -1102,7 +1269,8 @@ function submitReposicion(e) {
             showToast('Error', data.error || 'PIN inválido o error en el servidor.', 'error');
         }
     })
-    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'))
+    .finally(() => { if (btn) btn.disabled = false; });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1407,17 +1575,32 @@ function cancelarPedidoReposicion(id) {
 // 6. HISTORIAL DE PEDIDOS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function fetchHistorial() {
-    const search = document.getElementById('pedidosSearch')?.value || '';
-    let url = '/api/pedidos';
-    if (search) url += `?search=${encodeURIComponent(search)}`;
+let histPage = 1;
 
-    fetch(url)
+function fetchHistorial(page = histPage) {
+    histPage = Math.max(1, page);
+    const search = document.getElementById('pedidosSearch')?.value || '';
+    let url = `/api/pedidos?page=${histPage}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+
+    fetch(url, { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(data => {
             const tbody  = document.getElementById('historialTableBody');
             tbody.innerHTML = '';
             const pedidos = data.data || [];
+            const lastPage = data.last_page || 1;
+            if (histPage > lastPage && lastPage > 0) {
+                fetchHistorial(lastPage);
+                return;
+            }
+
+            const info = document.getElementById('historialPageInfo');
+            if (info) info.textContent = `Página ${data.current_page || histPage} de ${lastPage} (${data.total || 0} pedidos)`;
+            const btnPrev = document.getElementById('historialPrev');
+            const btnNext = document.getElementById('historialNext');
+            if (btnPrev) btnPrev.disabled = histPage <= 1;
+            if (btnNext) btnNext.disabled = histPage >= lastPage;
 
             if (pedidos.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="table-empty"><i class="fa-solid fa-receipt"></i> No se encontraron pedidos.</td></tr>`;
@@ -1444,11 +1627,11 @@ function fetchHistorial() {
                             ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                         </td>
                         <td>
-                            <strong style="display:block;">${formatClient}</strong>
-                            <span style="font-size:11px; color:var(--gray-400);">${formatMesa}</span>
+                            <strong style="display:block;">${escHtml(formatClient)}</strong>
+                            <span style="font-size:11px; color:var(--gray-400);">${escHtml(formatMesa)}</span>
                         </td>
                         <td><strong>${formatTotal}</strong></td>
-                        <td><span class="badge ${badgeClass}">${p.estado}</span></td>
+                        <td><span class="badge ${badgeClass}">${escHtml(p.estado)}</span></td>
                         <td>
                             <button class="btn-outline" style="padding:6px 12px; font-size:12px;" onclick="viewTicket(${p.id})">
                                 <i class="fa-regular fa-file-lines"></i> Ticket
@@ -1480,10 +1663,10 @@ function viewTicket(id) {
                     const sub = formatCOP(item.subtotal);
                     itemsContainer.innerHTML += `
                         <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <div style="flex:1;">${item.cantidad}x ${item.producto ? item.producto.nombre : 'Item'}</div>
+                            <div style="flex:1;">${item.cantidad}x ${item.producto ? escHtml(item.producto.nombre) : 'Item'}</div>
                             <div style="text-align:right;">${sub}</div>
                         </div>
-                        ${item.notas_especiales ? `<div style="font-size:11px; font-style:italic; padding-left:14px; color:var(--gray-400); margin-bottom:5px;">— ${item.notas_especiales}</div>` : ''}
+                        ${item.notas_especiales ? `<div style="font-size:11px; font-style:italic; padding-left:14px; color:var(--gray-400); margin-bottom:5px;">— ${escHtml(item.notas_especiales)}</div>` : ''}
                     `;
                 });
             } else {
@@ -1499,25 +1682,59 @@ function viewTicket(id) {
 // ── Comanda ──
 function submitComanda(e) {
     e.preventDefault();
+    const mesa = window._comandaMesa;
+    if (!mesa || !mesa.num) {
+        showToast('Error', 'Selecciona una mesa del plano primero.', 'error');
+        return;
+    }
+    const accion = document.getElementById('comandaAccion').value;
+
+    // "Añadir a pedido" se hace desde el menú del cliente para esa mesa.
+    if (accion === 'anadir') {
+        closeModal('modalComanda');
+        window.open(`/menu/mesa/${mesa.num}`, '_blank');
+        showToast('Menú abierto', `Agrega ítems desde el menú de la mesa ${mesa.num}.`, 'info');
+        return;
+    }
+
+    const btn = e.submitter;
+    if (btn) btn.disabled = true;
     fetch('/api/admin/mesas/comanda', {
         method: 'POST',
         headers: jsonHeaders(),
+        body: JSON.stringify({ mesa_numero: mesa.num, accion }),
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showToast('Acción ejecutada', 'La comanda fue procesada correctamente.', 'success');
+            showToast('Acción ejecutada', data.message || 'La comanda fue procesada correctamente.', 'success');
             closeModal('modalComanda');
+            fetchMesas();
+            if (data.mesa) {
+                document.getElementById('md-estado').textContent = data.mesa.estado.toUpperCase();
+                window._comandaMesa.estado = data.mesa.estado;
+            }
         } else {
-            showToast('Error', 'No se pudo ejecutar la acción.', 'error');
+            showToast('Error', data.error || 'No se pudo ejecutar la acción.', 'error');
         }
     })
-    .catch(() => showToast('Error', 'Error de conexión.', 'error'));
+    .catch(() => showToast('Error', 'Error de conexión.', 'error'))
+    .finally(() => { if (btn) btn.disabled = false; });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EDICIÓN DE RESERVAS
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Abre el modal de edición precargado usando el caché (evita inyectar objetos en onclick) */
+function abrirEditarReservaPorId(id) {
+    const r = (window._reservasCache || []).find(x => x.id === id);
+    if (!r) {
+        showToast('Error', 'No se encontró la reserva.', 'error');
+        return;
+    }
+    abrirEditarReserva(r);
+}
 
 /** Abre el modal de edición precargado con los datos de una reserva */
 function abrirEditarReserva(r) {
@@ -1604,12 +1821,17 @@ function submitEditarReserva(e) {
 // ELIMINACIÓN DE RESERVAS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function abrirEliminarReserva(id, nombre, estado) {
+function abrirEliminarReserva(id) {
+    const r = (window._reservasCache || []).find(x => x.id === id) || {};
+    const estado = r.estado || '';
     // Bloquear eliminación de completadas en frontend también
     if (estado === 'Completada') {
         showToast('Acción no permitida', 'No se pueden eliminar reservas ya completadas.', 'warning');
         return;
     }
+    let nombre = r.cliente_nombre || '';
+    const matchNota = (r.notas || '').match(/Cliente:\s*([^—\n]+)/i);
+    if (matchNota) nombre = matchNota[1].trim();
     document.getElementById('eliminarReservaId').value = id;
     document.getElementById('eliminarReservaNombre').textContent = nombre;
     openModal('modalEliminarReserva');
@@ -1890,7 +2112,7 @@ function _renderProductosGrid() {
             ? `<span style="background:#D4EDDA;color:#155724;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Disponible</span>`
             : `<span style="background:#F8D7DA;color:#721C24;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> No Disponible</span>`;
         const img = p.imagen_url
-            ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:100%;height:160px;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            ? `<img src="${escHtml(p.imagen_url)}" alt="${escHtml(p.nombre)}" style="width:100%;height:160px;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                <div style="width:100%;height:160px;background:var(--gold-bg);display:none;align-items:center;justify-content:center;"><i class="fa-solid fa-image" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`
             : `<div style="width:100%;height:160px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-utensils" style="font-size:30px;color:var(--gold-dark);opacity:0.4;"></i></div>`;
         return `<div class="panel-box" style="padding:0;overflow:hidden;display:flex;flex-direction:column;" id="prod-card-${p.id}">
@@ -1899,9 +2121,9 @@ function _renderProductosGrid() {
                 <div style="position:absolute;top:10px;right:10px;">${badge}</div>
             </div>
             <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:6px;">
-                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold-dark);font-weight:700;">${catName}</div>
-                <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--black);line-height:1.3;">${p.nombre}</div>
-                ${p.descripcion ? `<div style="font-size:12px;color:var(--gray-400);">${p.descripcion.substring(0,80)}${p.descripcion.length>80?'…':''}</div>` : ''}
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold-dark);font-weight:700;">${escHtml(catName)}</div>
+                <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--black);line-height:1.3;">${escHtml(p.nombre)}</div>
+                ${p.descripcion ? `<div style="font-size:12px;color:var(--gray-400);">${escHtml(p.descripcion.substring(0,80))}${p.descripcion.length>80?'…':''}</div>` : ''}
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;border-top:1px solid var(--border);">
                     <span style="font-size:18px;font-weight:800;color:var(--black);">${precio}</span>
                     <span style="font-size:11px;color:var(--gray-400);">Stock: <strong>${p.stock}</strong></span>
@@ -1913,7 +2135,7 @@ function _renderProductosGrid() {
                     <button class="btn-outline" style="padding:6px 10px;font-size:11px;" onclick="toggleDisponible(${p.id})" title="${p.disponible?'Desactivar del menú':'Activar en menú'}">
                         <i class="fa-solid ${p.disponible?'fa-eye-slash':'fa-eye'}"></i>
                     </button>
-                    <button class="btn-danger" style="padding:6px 10px;font-size:11px;" onclick="openDeleteProducto(${p.id},'${p.nombre.replace(/'/g,"\\'")}')"><i class="fa-solid fa-trash"></i></button>
+                    <button class="btn-danger" style="padding:6px 10px;font-size:11px;" onclick="openDeleteProducto(${p.id})"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
         </div>`;
@@ -2067,16 +2289,19 @@ async function toggleDisponible(id) {
             const estado = data.producto.disponible ? 'Disponible' : 'No disponible';
             showToast('✓ Actualizado', `"${p.nombre}" ahora está ${estado} en el menú.`, 'success');
             await fetchProductos();
+        } else {
+            showToast('Error', (data && data.error) || 'No se pudo cambiar el estado.', 'error');
         }
     } catch (e) {
         showToast('Error', 'No se pudo cambiar el estado.', 'error');
     }
 }
 
-/** Abre el modal de confirmación de eliminación */
-function openDeleteProducto(id, nombre) {
+/** Abre el modal de confirmación de eliminación (nombre desde caché, sin inyectar strings) */
+function openDeleteProducto(id) {
+    const p = (_productos || []).find(x => x.id === id) || {};
     document.getElementById('eliminarProductoId').value = id;
-    document.getElementById('eliminarProductoNombre').textContent = nombre;
+    document.getElementById('eliminarProductoNombre').textContent = p.nombre || '';
     openModal('modalEliminarProducto');
 }
 
@@ -2098,12 +2323,168 @@ async function confirmarEliminarProducto() {
     }
 }
 
-// Integrar en el switchTab existente: cargar productos al entrar al tab
-const _origSwitchTab = typeof switchTab === 'function' ? switchTab : null;
-if (_origSwitchTab) {
-    const _sw = switchTab;
-    switchTab = function(tab) {
-        _sw(tab);
-        if (tab === 'productos') fetchProductos();
+// ═══════════════════════════════════════════════════════════
+//  GESTIÓN DE CATEGORÍAS (CRUD)
+// ═══════════════════════════════════════════════════════════
+
+let _catListData = []; // caché local de categorías para el modal
+
+/** Abre el modal de gestión de categorías y carga la lista */
+async function openModalCategoria() {
+    resetCatForm();
+    openModal('modalCategoria');
+    await _loadCatList();
+}
+
+/** Carga la lista de categorías en el modal */
+async function _loadCatList() {
+    const container = document.getElementById('categoriasListContainer');
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-400);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</div>';
+    try {
+        const res = await apiFetch('/api/admin/categorias');
+        if (!res.ok) throw new Error();
+        _catListData = await res.json();
+        _renderCatList();
+    } catch (e) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger);">Error al cargar categorías.</div>';
+    }
+}
+
+/** Renderiza la lista de categorías dentro del modal */
+function _renderCatList() {
+    const container = document.getElementById('categoriasListContainer');
+    if (_catListData.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-400);">No hay categorías registradas.</div>';
+        return;
+    }
+    container.innerHTML = _catListData.map(c => `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); background:var(--white);">
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:13px; color:var(--black); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(c.nombre)}</div>
+                ${c.descripcion ? `<div style="font-size:11px; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(c.descripcion)}</div>` : ''}
+            </div>
+            <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; flex-shrink:0;
+                background:${c.activo ? 'rgba(30,140,69,0.12)' : 'rgba(200,50,50,0.1)'};
+                color:${c.activo ? 'var(--success,#1e8c45)' : 'var(--danger)'};">
+                ${c.activo ? 'Activa' : 'Inactiva'}
+            </span>
+            <button onclick="openEditCategoria(${c.id})"
+                style="padding:5px 10px; font-size:11px; border:1px solid var(--gold-dark); background:transparent; color:var(--gold-dark); border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;"
+                title="Editar categoría">
+                <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="openDeleteCategoria(${c.id})"
+                style="padding:5px 10px; font-size:11px; border:1px solid var(--danger); background:transparent; color:var(--danger); border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;"
+                title="Eliminar categoría">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+/** Escapa HTML para evitar XSS en innerHTML */
+function escHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/** Escapa atributos para onclick strings */
+function escAttr(str) {
+    return String(str ?? '').replace(/'/g, "\\'");
+}
+
+/** Pone el formulario de categoría en modo edición */
+function openEditCategoria(id) {
+    const cat = _catListData.find(c => c.id === id);
+    if (!cat) return;
+    document.getElementById('catId').value          = cat.id;
+    document.getElementById('catNombre').value      = cat.nombre;
+    document.getElementById('catDescripcion').value = cat.descripcion ?? '';
+    document.getElementById('catActivo').checked    = !!cat.activo;
+    document.getElementById('catFormLabel').textContent = 'Editar categoría';
+    document.getElementById('btnCatCancelar').textContent = 'Cancelar edición';
+    document.getElementById('catNombre').focus();
+}
+
+/** Resetea el formulario de categoría al estado "nueva" */
+function resetCatForm() {
+    document.getElementById('catId').value          = '';
+    document.getElementById('catNombre').value      = '';
+    document.getElementById('catDescripcion').value = '';
+    document.getElementById('catActivo').checked    = true;
+    document.getElementById('catFormLabel').textContent = 'Nueva categoría';
+    document.getElementById('btnCatCancelar').textContent = 'Cancelar';
+    document.getElementById('err-catNombre').style.display = 'none';
+}
+
+/** Envía el formulario de categoría (crear o editar) */
+async function submitCategoria(e) {
+    e.preventDefault();
+    const nombre = document.getElementById('catNombre').value.trim();
+    const errEl  = document.getElementById('err-catNombre');
+    if (!nombre) {
+        errEl.style.display = 'block';
+        document.getElementById('catNombre').focus();
+        return;
+    }
+    errEl.style.display = 'none';
+
+    const id      = document.getElementById('catId').value;
+    const payload = {
+        nombre,
+        descripcion: document.getElementById('catDescripcion').value.trim() || null,
+        activo:      document.getElementById('catActivo').checked,
     };
+
+    const btn = document.getElementById('btnSubmitCategoria');
+    btn.disabled    = true;
+    btn.innerHTML   = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        const url    = id ? `/api/admin/categorias/${id}` : '/api/admin/categorias';
+        const method = id ? 'PUT' : 'POST';
+        const res    = await apiFetch(url, { method, body: JSON.stringify(payload) });
+        const data   = await res.json();
+
+        if (res.ok && data.success) {
+            showToast('✔ Categoría guardada', `"${data.categoria.nombre}" guardada correctamente.`, 'success');
+            resetCatForm();
+            await _loadCatList();
+            // Refrescar selectores de productos
+            await fetchProductos();
+        } else {
+            showToast('Error', data.message || data.error || 'No se pudo guardar la categoría.', 'error');
+        }
+    } catch (err) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    } finally {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Categoría';
+    }
+}
+
+/** Abre el modal de confirmación para eliminar una categoría */
+function openDeleteCategoria(id) {
+    const c = (_catListData || []).find(x => x.id === id) || {};
+    document.getElementById('eliminarCategoriaId').value           = id;
+    document.getElementById('eliminarCategoriaNombre').textContent = c.nombre || '';
+    openModal('modalEliminarCategoria');
+}
+
+/** Confirma y ejecuta la eliminación de una categoría */
+async function confirmarEliminarCategoria() {
+    const id = document.getElementById('eliminarCategoriaId').value;
+    try {
+        const res  = await apiFetch(`/api/admin/categorias/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            closeModal('modalEliminarCategoria');
+            showToast('✔ Eliminada', data.message || 'Categoría eliminada correctamente.', 'success');
+            await _loadCatList();
+            await fetchProductos();
+        } else {
+            showToast('Error', data.message || data.error || 'No se pudo eliminar la categoría.', 'error');
+        }
+    } catch (e) {
+        showToast('Error', 'Fallo de conexión.', 'error');
+    }
 }

@@ -44,13 +44,15 @@ Route::middleware(['web', 'auth', 'single.session'])->group(function () {
         Route::post('/admin/insumos', [\App\Http\Controllers\InventoryController::class, 'store']);
         Route::put('/admin/insumos/{id}', [\App\Http\Controllers\InventoryController::class, 'update']);
         Route::delete('/admin/insumos/{id}', [\App\Http\Controllers\InventoryController::class, 'destroy']);
-        Route::post('/admin/insumos/pedido', [\App\Http\Controllers\InventoryController::class, 'storeReposicion']);
+        Route::post('/admin/insumos/pedido', [\App\Http\Controllers\InventoryController::class, 'storeReposicion'])->middleware('throttle:5,1');
         Route::get('/admin/insumos/pedidos', [\App\Http\Controllers\InventoryController::class, 'historialReposiciones']);
         Route::post('/admin/insumos/pedidos/{id}/recibir', [\App\Http\Controllers\InventoryController::class, 'marcarRecibido']);
         Route::post('/admin/insumos/pedidos/{id}/cancelar', [\App\Http\Controllers\InventoryController::class, 'cancelarReposicion']);
         
         Route::get('/admin/staff', [\App\Http\Controllers\StaffController::class, 'index']);
         Route::post('/admin/staff', [\App\Http\Controllers\StaffController::class, 'store']);
+        Route::put('/admin/staff/{id}', [\App\Http\Controllers\StaffController::class, 'update']);
+        Route::delete('/admin/staff/{id}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 
         Route::get('/pedidos', [PedidoController::class, 'index']); // Historial completo con paginación
 
@@ -67,8 +69,8 @@ Route::middleware(['web', 'auth', 'single.session'])->group(function () {
         Route::delete('/admin/categorias/{id}',  [\App\Http\Controllers\CategoriaController::class, 'destroy']);
     });
 
-    // Acciones de Cocina (Cocinero y Administrador)
-    Route::middleware(['role:Cocinero,Administrador'])->group(function () {
+    // Acciones de Cocina y Caja (Cocinero, Cajero y Administrador)
+    Route::middleware(['role:Cocinero,Cajero,Administrador'])->group(function () {
         Route::get('/pedidos/activos', [PedidoController::class, 'activeOrders']);
         Route::post('/pedidos/{id}/estado', [PedidoController::class, 'updateStatus']);
     });

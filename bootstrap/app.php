@@ -66,14 +66,16 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->booted(function () {
-        // 60 req/min por IP para consultas del menú público
+        // Consultas del menú público: bucket por IP+ruta. Todos los clientes
+        // comparten el WiFi/IP del local; un bucket único los bloquearía entre sí.
         RateLimiter::for('public-api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->ip());
+            return Limit::perMinute(60)->by($request->ip() . '|' . $request->path());
         });
 
-        // 10 pedidos/min por IP para evitar spam de pedidos
+        // Pedidos: límite por mesa (no por IP) para no bloquear a mesas vecinas
+        // que comparten IP ni a reintentos legítimos de otros clientes.
         RateLimiter::for('crear-pedido', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(10)->by($request->ip() . '|mesa:' . $request->input('mesa_id'));
         });
     })
     ->create();

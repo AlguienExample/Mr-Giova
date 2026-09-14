@@ -46,13 +46,18 @@ class InventoryController extends Controller
             $alertasCount   = $insumos->where('estado', 'CRÍTICO')->count();
             $itemsActivos   = $insumos->count();
 
+            // Disponibilidad (% de insumos en estado óptimo), calculada desde la DB
+            $disponibilidad = $itemsActivos > 0
+                ? (int) round((($itemsActivos - $alertasCount) / $itemsActivos) * 100)
+                : 0;
+
             return response()->json([
                 'insumos' => $insumos->values(),
                 'kpis'    => [
-                    'valor_total'  => round($valorTotal, 2),
-                    'alertas'      => $alertasCount,
-                    'rotacion'     => '84%',     // Dato estático de referencia
-                    'items_activos'=> $itemsActivos,
+                    'valor_total'    => round($valorTotal, 2),
+                    'alertas'        => $alertasCount,
+                    'disponibilidad' => $disponibilidad,
+                    'items_activos'  => $itemsActivos,
                 ],
             ]);
 
@@ -222,13 +227,25 @@ class InventoryController extends Controller
             ]);
 
             $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Sesión inválida. Vuelve a iniciar sesión.',
+                ], 401);
+            }
+
+            // Re-consultar el usuario desde la BD: el PIN es la contraseña vigente.
+            // Si el admin cambió su contraseña (p. ej. con la recuperación), el PIN
+            // nuevo es válido de inmediato y el anterior deja de serlo, incluso si
+            // la instancia de sesión ya estaba cargada en memoria.
+            $user = $user->fresh();
 
             // Validar PIN de autorización (confirmación de contraseña)
             if (!Hash::check($request->pin, $user->password)) {
                 Log::warning('[InventoryController@storeReposicion] PIN inválido intentado por ' . $user->email);
                 return response()->json([
                     'success' => false,
-                    'error'   => 'PIN de autorización inválido.',
+                    'error'   => 'PIN de autorización inválido. El PIN es tu contraseña de acceso vigente: si la cambiaste (por ejemplo con la recuperación de contraseña), usa la nueva.',
                 ], 403);
             }
 
@@ -255,8 +272,14 @@ class InventoryController extends Controller
                 ]);
 
                 // Crear una línea de detalle por cada insumo crítico
+                $lineas = 0;
                 foreach ($criticos as $insumo) {
                     $cantidadSugerida = max(0, ($insumo->stock_minimo * 2) - $insumo->cantidad_actual);
+
+                    // No crear líneas con cantidad en 0 (p. ej. insumos con stock_minimo = 0)
+                    if ($cantidadSugerida <= 0) {
+                        continue;
+                    }
 
                     DetallePedidoProveedor::create([
                         'pedido_proveedor_id'    => $pedido->id,
@@ -264,6 +287,11 @@ class InventoryController extends Controller
                         'cantidad_pedida'        => $cantidadSugerida,
                         'costo_unitario_momento' => $insumo->costo_unitario,
                     ]);
+                    $lineas++;
+                }
+
+                if ($lineas === 0) {
+                    throw new HttpException(422, 'Ningún insumo crítico requiere reposición en este momento.');
                 }
 
                 return $pedido;
@@ -346,6 +374,9 @@ class InventoryController extends Controller
                 // 2. Verificar estado DESPUÉS de tener el lock
                 if ($pedido->estado === 'Recibido') {
                     throw new HttpException(422, 'Este pedido ya fue marcado como recibido.');
+                }
+                if ($pedido->estado === 'Cancelado') {
+                    throw new HttpException(422, 'No se puede recibir un pedido cancelado.');
                 }
 
                 // 3. Sumar stock a cada insumo, con lockForUpdate() dentro de la misma transacción

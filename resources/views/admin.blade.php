@@ -319,10 +319,10 @@
                         <div class="content-title">Inventario de Insumos</div>
                     </div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-                        <button class="btn-black" onclick="openModal('modalMateriaPrima')" id="btn-add-insumo">
+                        <button class="btn-black" onclick="openNuevoInsumo()" id="btn-add-insumo">
                             <i class="fa-solid fa-plus"></i> Añadir Insumo
                         </button>
-                        <button class="btn-gold" onclick="openModal('modalReposicion')" id="btn-reposicion">
+                        <button class="btn-gold" onclick="openReposicionModal()" id="btn-reposicion">
                             <i class="fa-solid fa-cart-shopping"></i> Pedido de Reposición
                         </button>
                     </div>
@@ -339,8 +339,8 @@
                         <div class="card-value" style="color:var(--danger)" id="inv-alertas">0</div>
                     </div>
                     <div class="dashboard-card">
-                        <div class="card-label"><i class="fa-solid fa-arrow-trend-up"></i> Rotación Mensual</div>
-                        <div class="card-value" id="inv-rotacion">—</div>
+                        <div class="card-label"><i class="fa-solid fa-percent"></i> Disponibilidad</div>
+                        <div class="card-value" id="inv-disponibilidad">—</div>
                     </div>
                     <div class="dashboard-card">
                         <div class="card-label"><i class="fa-solid fa-box-open"></i> Items Activos</div>
@@ -520,6 +520,9 @@
                         <div class="content-subtitle">Los cambios se reflejan automáticamente en el menú del cliente.</div>
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn-outline" onclick="openModalCategoria()" id="btn-add-categoria" style="border-color:var(--gold-dark); color:var(--gold-dark);">
+                            <i class="fa-solid fa-tags"></i> Gestionar Categorías
+                        </button>
                         <button class="btn-gold" onclick="openModalProducto()" id="btn-add-producto">
                             <i class="fa-solid fa-plus"></i> Nuevo Producto
                         </button>
@@ -592,7 +595,7 @@
                     </div>
                     <div class="search-bar" style="background:var(--white); border:1px solid var(--border);">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="pedidosSearch" placeholder="Buscar por ID o Mesa..." oninput="fetchHistorial()">
+                        <input type="text" id="pedidosSearch" placeholder="Buscar por ID o Mesa..." oninput="fetchHistorial(1)">
                     </div>
                 </div>
 
@@ -617,6 +620,17 @@
                             </tr>
                         </tbody>
                     </table>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid var(--border); background:var(--white);">
+                        <span id="historialPageInfo" style="font-size:12px; color:var(--gray-400);">Página 1</span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-outline" id="historialPrev" style="padding:6px 12px; font-size:12px;" onclick="fetchHistorial(histPage - 1)">
+                                <i class="fa-solid fa-chevron-left"></i> Anterior
+                            </button>
+                            <button class="btn-outline" id="historialNext" style="padding:6px 12px; font-size:12px;" onclick="fetchHistorial(histPage + 1)">
+                                Siguiente <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -807,6 +821,7 @@
         </div>
         <div class="modal-body">
             <form id="formMateriaPrima" onsubmit="submitMateriaPrima(event)" novalidate>
+                <input type="hidden" id="mpId" value="">
 
                 <div class="form-group">
                     <label for="mpNombre">Nombre del Insumo *</label>
@@ -933,6 +948,70 @@
     </div>
 </div>
 
+<!-- ── Modal: Editar Staff ── -->
+<div class="mrgiova-modal" id="modalStaffEdit" role="dialog" aria-modal="true" aria-labelledby="modalStaffEditTitulo">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 id="modalStaffEditTitulo"><i class="fa-solid fa-user-pen" style="color:var(--gold-dark); margin-right:8px;"></i> Editar Empleado</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalStaffEdit')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formStaffEdit" onsubmit="submitEditStaff(event)">
+                <input type="hidden" id="editStaffId">
+                <p style="font-size:13px; margin-bottom:18px; color:var(--gray-600);">Editando a <strong id="editStaffNombre">--</strong>.</p>
+                <div class="form-group">
+                    <label for="editStaffCargo">Cargo *</label>
+                    <select id="editStaffCargo" class="form-control" required>
+                        <option>Chef Ejecutivo</option>
+                        <option>Sous Chef</option>
+                        <option>Sommelier</option>
+                        <option>Maître D'</option>
+                        <option>Mesero</option>
+                        <option>Cajero</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editStaffActivo">Estado *</label>
+                    <select id="editStaffActivo" class="form-control" required>
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalStaffEdit')">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;">
+                        <i class="fa-solid fa-check"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Eliminar Staff ── -->
+<div class="mrgiova-modal" id="modalEliminarStaff" role="dialog" aria-modal="true" aria-labelledby="modalEliminarStaffTitulo">
+    <div class="modal-content" style="max-width:400px;">
+        <div class="modal-header">
+            <h3 id="modalEliminarStaffTitulo"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger); margin-right:8px;"></i> Eliminar Empleado</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalEliminarStaff')" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eliminarStaffId">
+            <p style="font-size:13px; color:var(--gray-600);">¿Eliminar a <strong id="eliminarStaffNombre">--</strong>? Esta acción no se puede deshacer. Si tiene reposiciones registradas, desactívalo en su lugar.</p>
+            <div style="display:flex; gap:10px; margin-top:18px;">
+                <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalEliminarStaff')">Cancelar</button>
+                <button type="button" class="btn-danger" id="btnConfirmarEliminarStaff" style="flex:2;" onclick="confirmarEliminarStaff()">
+                    <i class="fa-solid fa-trash"></i> Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Modal: Pedido de Reposición ── -->
 <div class="mrgiova-modal" id="modalReposicion" role="dialog" aria-modal="true" aria-labelledby="modalReposicionTitulo">
     <div class="modal-content" style="max-width:420px;">
@@ -952,6 +1031,9 @@
                     <label for="repPin">Firma de Autorización (PIN)</label>
                     <input type="password" id="repPin" class="form-control" required
                            placeholder="••••" style="letter-spacing:6px; text-align:center; font-size:18px;">
+                    <div class="form-error-text" style="position:static; opacity:1; color:var(--gray-400); margin-top:6px;">
+                        El PIN es tu contraseña de acceso vigente. Si la cambiaste con la recuperación de contraseña, usa la nueva.
+                    </div>
                 </div>
                 <div style="display:flex; gap:10px;">
                     <button type="button" class="btn-outline" style="flex:1;" onclick="closeModal('modalReposicion')">Cancelar</button>
@@ -975,13 +1057,13 @@
         </div>
         <div class="modal-body">
             <form id="formComanda" onsubmit="submitComanda(event)">
-                <p style="font-size:13px; margin-bottom:18px; color:var(--gray-600);">Acción requerida para la mesa seleccionada.</p>
+                <p style="font-size:13px; margin-bottom:18px; color:var(--gray-600);">Acción requerida para la mesa <strong id="comandaMesaNum">--</strong>.</p>
                 <div class="form-group" style="margin-bottom:24px;">
                     <label for="comandaAccion">Acción</label>
                     <select id="comandaAccion" class="form-control" required>
-                        <option>Abrir Mesa</option>
-                        <option>Añadir a Pedido Existente</option>
-                        <option>Cerrar Mesa (Pedir Cuenta)</option>
+                        <option value="abrir">Abrir Mesa</option>
+                        <option value="anadir">Añadir a Pedido Existente</option>
+                        <option value="cerrar">Cerrar Mesa (Pedir Cuenta)</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:10px;">
@@ -1031,9 +1113,8 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     JAVASCRIPT
+     JAVASCRIPT (al final: los modales y el DOM deben existir cuando se ejecuta)
 ═══════════════════════════════════════════════════════════════════════ -->
-<script src="{{ asset('js/pages/admin.js') }}"></script>
 
 <!-- ── Modal: Crear / Editar Producto ── -->
 <div class="mrgiova-modal" id="modalProducto" role="dialog" aria-modal="true" aria-labelledby="modalProductoTitulo">
@@ -1180,8 +1261,8 @@
 
             <!-- Tabla de insumos del pedido -->
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray-400); font-weight:700; margin-bottom:10px;">Insumos Pedidos</div>
-            <div class="panel-box" style="padding:0; overflow:hidden; margin-bottom:20px;">
-                <table class="haute-table" style="font-size:12px;">
+            <div class="panel-box" style="padding:0; overflow-x:auto; margin-bottom:20px;">
+                <table class="haute-table" style="font-size:12px; min-width: 600px;">
                     <thead>
                         <tr>
                             <th>Insumo</th>
@@ -1207,6 +1288,90 @@
         </div>
     </div>
 </div>
+
+<!-- ── Modal: Gestión de Categorías ── -->
+<div class="mrgiova-modal" id="modalCategoria" role="dialog" aria-modal="true" aria-labelledby="modalCategoriaTitulo">
+    <div class="modal-content" style="max-width:540px;">
+        <div class="modal-header">
+            <h3 id="modalCategoriaTitulo"><i class="fa-solid fa-tags" style="color:var(--gold-dark); margin-right:8px;"></i> <span id="modalCategoriaTituloText">Gestionar Categorías</span></h3>
+            <button class="modal-close-btn" onclick="closeModal('modalCategoria')" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+
+            <!-- Lista de categorías existentes -->
+            <div style="margin-bottom:20px;">
+                <div style="font-size:10px; color:var(--gold-dark); text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:10px;">Categorías existentes</div>
+                <div id="categoriasListContainer" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm);">
+                    <div style="text-align:center; padding:20px; color:var(--gray-400);">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Separador -->
+            <div style="height:1px; background:var(--border); margin-bottom:20px;"></div>
+
+            <!-- Formulario crear / editar -->
+            <div style="font-size:10px; color:var(--gold-dark); text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:10px;" id="catFormLabel">Nueva categoría</div>
+            <form id="formCategoria" onsubmit="submitCategoria(event)" novalidate>
+                <input type="hidden" id="catId">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label for="catNombre">Nombre *</label>
+                        <input type="text" id="catNombre" class="form-control" placeholder="Ej: Parrillas, Bebidas..." required maxlength="100">
+                        <div class="form-error-text" id="err-catNombre">El nombre es obligatorio.</div>
+                    </div>
+                    <div class="form-group" style="flex:1; display:flex; align-items:flex-end; padding-bottom:4px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:13px; margin:0;">
+                            <input type="checkbox" id="catActivo" style="width:16px; height:16px; accent-color:var(--gold-dark);" checked>
+                            Activa
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="catDescripcion">Descripción</label>
+                    <textarea id="catDescripcion" class="form-control" rows="2" placeholder="Descripción opcional de la categoría..."></textarea>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-outline" style="flex:1;" onclick="resetCatForm()" id="btnCatCancelar">Cancelar</button>
+                    <button type="submit" class="btn-gold" style="flex:2;" id="btnSubmitCategoria">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Categoría
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Confirmar Eliminación de Categoría ── -->
+<div class="mrgiova-modal" id="modalEliminarCategoria" role="dialog" aria-modal="true" aria-labelledby="modalEliminarCategoriaTitulo">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header" style="border-bottom:1px solid #FFCDD2;">
+            <h3 id="modalEliminarCategoriaTitulo" style="color:var(--danger);"><i class="fa-solid fa-trash-can" style="margin-right:8px;"></i> Eliminar Categoría</h3>
+            <button class="modal-close-btn" onclick="closeModal('modalEliminarCategoria')" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eliminarCategoriaId">
+            <div style="text-align:center; padding:10px 0 20px;">
+                <i class="fa-solid fa-circle-xmark" style="font-size:40px; color:var(--danger); opacity:0.7; margin-bottom:14px; display:block;"></i>
+                <p style="font-size:14px; color:var(--gray-800); margin-bottom:8px;">
+                    ¿Eliminar la categoría <strong id="eliminarCategoriaNombre" style="color:var(--black);"></strong>?
+                </p>
+                <p style="font-size:12px; color:var(--gray-400);">
+                    Solo se puede eliminar si no tiene productos asociados.<br>Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-outline" style="flex:1;" onclick="closeModal('modalEliminarCategoria')">Volver</button>
+                <button class="btn-danger" style="flex:2;" onclick="confirmarEliminarCategoria()">
+                    <i class="fa-solid fa-trash"></i> Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ asset('js/pages/admin.js') }}"></script>
 
 </body>
 </html>

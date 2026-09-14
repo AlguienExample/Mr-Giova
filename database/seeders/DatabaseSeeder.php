@@ -23,6 +23,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Guardia: este seeder hace TRUNCATE de todo. Jamás vaciar producción por accidente.
+        if (app()->isProduction()) {
+            $confirma = $this->command?->confirm('⚠️  Estás en PRODUCCIÓN. ¿Vaciar y re-sembrar TODA la base de datos?', false);
+            if (!$confirma) {
+                $this->command?->warn('Siembra cancelada. Nada fue modificado.');
+                return;
+            }
+        }
+
         // Limpiar base de datos para re-siembra limpia
         \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
         \App\Models\DetallePedidoProveedor::truncate();
@@ -56,6 +65,11 @@ class DatabaseSeeder extends Seeder
             'description' => 'Toma pedidos presenciales y gestiona mesas'
         ]);
 
+        $rolCajero = Role::create([
+            'name' => 'Cajero',
+            'description' => 'Maneja la caja, facturación e impresión de cuentas'
+        ]);
+
         $rolCliente = Role::create([
             'name' => 'Cliente',
             'description' => 'Comensal del restaurante'
@@ -65,7 +79,7 @@ class DatabaseSeeder extends Seeder
         $userAdmin = Usuario::create([
             'nombres' => 'Don',
             'apellidos' => 'Pueblo',
-            'email' => 'admin@saborapueblo.com',
+            'email' => 'camilojimenez24712@gmail.com',
             'password' => Hash::make('admin123'),
             'rol_id' => $rolAdmin->id,
             'activo' => true,

@@ -15,7 +15,7 @@ class CategoriaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|max:100',
+            'nombre' => 'required|string|max:100|unique:categorias,nombre',
             'descripcion' => 'nullable|string',
             'activo' => 'boolean'
         ]);
@@ -32,7 +32,7 @@ class CategoriaController extends Controller
         }
 
         $validated = $request->validate([
-            'nombre' => 'required|string|max:100',
+            'nombre' => 'required|string|max:100|unique:categorias,nombre,' . $categoria->id,
             'descripcion' => 'nullable|string',
             'activo' => 'boolean'
         ]);

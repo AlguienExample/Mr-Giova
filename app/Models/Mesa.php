@@ -20,6 +20,13 @@ class Mesa extends Model
         'empleado_id',
         'zona',
         'timer_inicio',
+        'pos_x',
+        'pos_y',
+    ];
+
+    protected $casts = [
+        'pos_x' => 'decimal:2',
+        'pos_y' => 'decimal:2',
     ];
 
     public function empleado()

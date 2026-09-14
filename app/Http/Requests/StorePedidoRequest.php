@@ -22,12 +22,13 @@ class StorePedidoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'mesa_id'                  => 'required',
-            'items'                    => 'required|array|min:1',
+            'mesa_id'                  => 'required_unless:tipo_pedido,Para_Llevar|nullable|integer|min:1|max:999',
+            'tipo_pedido'              => 'sometimes|in:Presencial,Para_Llevar',
+            'items'                    => 'required|array|min:1|max:50',
             'items.*.producto_id'      => 'required|exists:productos,id',
-            'items.*.cantidad'         => 'required|integer|min:1',
+            'items.*.cantidad'         => 'required|integer|min:1|max:50',
             'items.*.notas_especiales' => 'nullable|string|max:255',
-            'notas'                    => 'nullable|string'
+            'notas'                    => 'nullable|string|max:500'
         ];
     }
 }

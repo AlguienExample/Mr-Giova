@@ -1,248 +1,452 @@
-/* ── Layout ─────────────────────────────────────── */
-        .caja-grid {
-            display: grid;
-            grid-template-columns: 1fr 370px;
-            gap: 24px;
-            height: calc(100vh - 130px);
-            overflow: hidden;
-        }
-        .mesas-area { overflow-y: auto; }
+/* ----------------------------------------------------
+   CAJA POS � Complete Redesign
+   Matches the reference design with dark sidebar,
+   zone tabs, improved mesa cards, and full POS panel
+---------------------------------------------------- */
 
-        /* ── Toolbar de filtros ──────────────────────────── */
-        .filter-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
-        }
-        .toggle-pill {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--gray-100);
-            border: 1px solid var(--border);
-            border-radius: 50px;
-            padding: 6px 14px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
-        }
-        .toggle-pill.active {
-            background: var(--black);
-            color: var(--white);
-            border-color: var(--black);
-        }
-        .toggle-pill input[type="checkbox"] { display: none; }
+/* -- Variables override para POS -------------------- */
+:root {
+    --pos-bg: #0f1117;
+    --pos-sidebar: #161b27;
+    --pos-card: #1a2035;
+    --pos-card-hover: #1f2640;
+    --pos-border: rgba(255,255,255,0.07);
+    --pos-text: #e8eaf0;
+    --pos-text-muted: #7b8299;
+    --pos-gold: #f5a623;
+    --pos-gold-dark: #c87c00;
+    --pos-gold-bg: rgba(245,166,35,0.10);
+    --pos-green: #10b981;
+    --pos-red: #ef4444;
+    --pos-occupied: #f5a623;
+    --pos-reserved: #7c3aed;
+    --pos-radius: 12px;
+    --pos-radius-sm: 8px;
+}
 
-        /* ── Grid de Mesas ───────────────────────────────── */
-        .mesas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-            gap: 14px;
-        }
-        .mesa-card {
-            border: 1px solid var(--border);
-            background: var(--white);
-            padding: 18px 14px 14px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.25s;
-            position: relative;
-            overflow: hidden;
-            border-radius: var(--radius-md);
-        }
-        .mesa-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: var(--gray-300);
-            transition: background 0.25s;
-        }
-        .mesa-card.estado-ocupada::before  { background: var(--gold); }
-        .mesa-card.estado-cuenta::before   { background: #D32F2F; }
-        .mesa-card.estado-reservada::before{ background: #7B5EA7; }
+body.admin-page { background: var(--pos-bg) !important; }
 
-        .mesa-card:hover  { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-        .mesa-card.active { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
-        .mesa-card.hidden-by-filter { display: none; }
+.admin-sidebar { background: var(--pos-sidebar) !important; border-right: 1px solid var(--pos-border) !important; }
+.admin-sidebar h2 { color: #fff !important; }
+.admin-nav a { color: var(--pos-text-muted) !important; transition: color 0.2s, background 0.2s !important; }
+.admin-nav-item.active a, .admin-nav a:hover { color: #fff !important; background: rgba(245,166,35,0.12) !important; border-radius: 8px; }
+.admin-nav-item.active a { color: var(--pos-gold) !important; }
 
-        .mesa-num {
-            font-family: var(--font-serif);
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        .mesa-status-label {
-            font-size: 9px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--gray-400);
-        }
-        .mesa-status-label.ocupada  { color: var(--gold-dark); }
-        .mesa-status-label.cuenta   { color: #D32F2F; }
-        .mesa-status-label.reservada{ color: #7B5EA7; }
+.admin-main { background: var(--pos-bg) !important; }
+.admin-header { background: var(--pos-sidebar) !important; border-bottom: 1px solid var(--pos-border) !important; }
+.admin-header h1, .admin-header h1 span { color: #fff !important; }
+.content-subtitle { color: var(--pos-text-muted) !important; }
+.admin-content { background: transparent !important; }
 
-        /* ── Alerta de permanencia ───────────────────────── */
-        .alerta-tiempo {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            font-size: 9px;
-            background: #FFF3CD;
-            color: #856404;
-            border: 1px solid #FFECB5;
-            border-radius: 20px;
-            padding: 2px 6px;
-            font-weight: 700;
-        }
-        .alerta-tiempo.critica {
-            background: #FDEDED;
-            color: #D32F2F;
-            border-color: #FFCDD2;
-            animation: pulse-badge 1.5s infinite;
-        }
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.5; }
-        }
+/* -- POS main grid ---------------------------------- */
+.caja-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    height: calc(100vh - 120px);
+    overflow: hidden;
+}
 
-        /* ── Panel de Ticket ─────────────────────────────── */
-        .ticket-panel {
-            border: 1px solid var(--border);
-            background: var(--white);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-            border-radius: var(--radius-md);
-        }
-        .ticket-header {
-            padding: 18px 20px;
-            border-bottom: 1px solid var(--border);
-            background: var(--gray-100);
-        }
-        .ticket-body   { flex: 1; overflow-y: auto; padding: 16px 20px; }
-        .ticket-footer { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--gray-100); }
+.mesas-area { overflow-y: auto; display: flex; flex-direction: column; gap: 0; }
+.mesas-area::-webkit-scrollbar { width: 4px; }
+.mesas-area::-webkit-scrollbar-track { background: transparent; }
+.mesas-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
-        .ticket-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 9px 0;
-            border-bottom: 1px dashed var(--border);
-        }
-        .ticket-item:last-child { border-bottom: none; }
+/* -- Filter bar ------------------------------------- */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
 
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            font-size: 12px;
-            color: var(--gray-400);
-        }
-        .total-row.gran-total {
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--black);
-            border-top: 1px solid var(--border);
-            padding-top: 10px;
-            margin-top: 6px;
-        }
-        .empty-ticket {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: var(--gray-400);
-            text-align: center;
-            padding: 24px;
-        }
+.zona-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.zona-tab {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 1px solid var(--pos-border);
+    background: var(--pos-card);
+    color: var(--pos-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.zona-tab:hover { border-color: var(--pos-gold); color: var(--pos-gold); }
+.zona-tab.active { background: var(--pos-gold); color: #000; border-color: var(--pos-gold); }
 
-        /* ── Propinas ────────────────────────────────────── */
-        .tip-selector {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .tip-btn {
-            background: var(--gray-100);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 7px 4px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-        }
-        .tip-btn:hover, .tip-btn.active {
-            background: var(--black);
-            color: var(--white);
-            border-color: var(--black);
-        }
+.toggle-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--pos-card);
+    border: 1px solid var(--pos-border);
+    border-radius: 50px;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    color: var(--pos-text-muted);
+    white-space: nowrap;
+}
+.toggle-pill:hover { border-color: var(--pos-gold); color: var(--pos-gold); }
+.toggle-pill.active { background: rgba(16,185,129,0.15); border-color: var(--pos-green); color: var(--pos-green); }
+.toggle-pill input[type="checkbox"] { display: none; }
 
-        /* ── División de cuenta ─────────────────────────── */
-        .split-panel {
-            background: var(--gray-50);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 10px;
-        }
-        .split-panel label { font-size: 11px; color: var(--gray-600); font-weight: 600; display: block; margin-bottom: 6px; }
-        .split-controls { display: flex; align-items: center; gap: 8px; }
-        .split-num-btn {
-            width: 28px; height: 28px;
-            border: 1px solid var(--border);
-            background: var(--white);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 700;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-        }
-        .split-num-btn:hover { background: var(--black); color: var(--white); border-color: var(--black); }
-        #split-count {
-            font-family: var(--font-serif);
-            font-size: 20px;
-            font-weight: 700;
-            width: 36px;
-            text-align: center;
-        }
-        #split-result {
-            font-size: 12px;
-            color: var(--gold-dark);
-            font-weight: 700;
-            margin-top: 6px;
-        }
+/* -- Mesas grid ------------------------------------- */
+.mesas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 12px;
+}
 
-        /* ── Tabs del panel de ticket ─────────────────────── */
-        .ticket-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
-        }
-        .ticket-tab {
-            padding: 5px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 4px;
-            color: var(--gray-400);
-            transition: all 0.2s;
-        }
-        .ticket-tab.active {
-            background: var(--black);
-            color: var(--white);
-        }
+/* -- Mesa card -------------------------------------- */
+.mesa-card {
+    background: var(--pos-card);
+    border: 1.5px solid var(--pos-border);
+    border-radius: var(--pos-radius);
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+}
+.mesa-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--pos-border);
+    transition: background 0.25s;
+}
+.mesa-card.estado-ocupada::before  { background: var(--pos-occupied); }
+.mesa-card.estado-reservada::before{ background: var(--pos-reserved); }
+.mesa-card:hover { border-color: var(--pos-gold); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.mesa-card.active { border-color: var(--pos-gold) !important; box-shadow: 0 0 0 2px var(--pos-gold), 0 6px 20px rgba(245,166,35,.2); background: var(--pos-card-hover); }
+.mesa-card.hidden-by-filter { display: none; }
+
+/* Mesa card header */
+.mesa-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+.mesa-num {
+    font-family: var(--font-serif, Georgia, serif);
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+.mesa-status-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--pos-text-muted);
+    background: rgba(255,255,255,0.06);
+    padding: 3px 7px;
+    border-radius: 20px;
+}
+.mesa-status-label.ocupada   { color: var(--pos-occupied); background: rgba(245,166,35,0.12); }
+.mesa-status-label.reservada { color: var(--pos-reserved); background: rgba(124,58,237,0.15); }
+
+.mesa-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--pos-text-muted);
+}
+.mesa-card-meta i { font-size: 10px; }
+.mesa-card-meta .pax { display: flex; align-items: center; gap: 4px; }
+.mesa-card-meta .timer { display: flex; align-items: center; gap: 4px; color: var(--pos-occupied); font-weight: 700; }
+
+.mesa-card-amount .label { font-size: 10px; color: var(--pos-text-muted); margin-bottom: 1px; }
+.mesa-card-amount .amount {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--pos-gold);
+    font-family: var(--font-serif, Georgia, serif);
+}
+.mesa-card .no-cmd { font-size: 11px; color: var(--pos-text-muted); font-style: italic; margin-top: 4px; }
+
+/* -- Alerta permanencia ----------------------------- */
+.alerta-tiempo {
+    position: absolute; top: 8px; right: 8px;
+    font-size: 9px;
+    background: rgba(245,166,35,0.2); color: var(--pos-occupied);
+    border: 1px solid rgba(245,166,35,0.4);
+    border-radius: 20px; padding: 2px 7px; font-weight: 700;
+}
+.alerta-tiempo.critica {
+    background: rgba(239,68,68,0.2); color: var(--pos-red);
+    border-color: rgba(239,68,68,0.4);
+    animation: pulse-badge 1.5s infinite;
+}
+@keyframes pulse-badge { 0%, 100% { opacity:1; } 50% { opacity:.5; } }
+
+/* ---------------------------------------------------
+   TICKET PANEL
+--------------------------------------------------- */
+.ticket-panel {
+    background: var(--pos-sidebar);
+    border: 1px solid var(--pos-border);
+    border-radius: var(--pos-radius);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ticket-header-brand {
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--pos-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(245,166,35,0.06);
+    flex-shrink: 0;
+}
+.ticket-logo-text { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--pos-gold); }
+.ticket-logo-text i { margin-right: 6px; }
+.ticket-subtext { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--pos-text-muted); }
+
+.ticket-header { padding: 14px 20px; border-bottom: 1px solid var(--pos-border); flex-shrink: 0; }
+.ticket-header #pedido-titulo { font-family: var(--font-serif, Georgia, serif); font-size: 20px; font-weight: 700; color: #fff !important; margin-bottom: 2px; }
+.ticket-header #pedido-info { font-size: 11px; color: var(--pos-text-muted) !important; }
+
+#pedido-estado-badge { font-size: 9px !important; padding: 4px 9px !important; border-radius: 20px !important; font-weight: 700 !important; letter-spacing: 1px; }
+.badge-pendiente { background: rgba(245,166,35,0.15) !important; color: var(--pos-gold) !important; border: 1px solid rgba(245,166,35,0.3) !important; }
+.badge-optimo { background: rgba(16,185,129,0.15) !important; color: var(--pos-green) !important; border: 1px solid rgba(16,185,129,0.3) !important; }
+
+/* Tabs */
+.ticket-tabs { display: flex; gap: 4px; padding: 12px 16px 0; border-bottom: 1px solid var(--pos-border); flex-shrink: 0; }
+.ticket-tab {
+    flex: 1; padding: 8px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; border-radius: 8px 8px 0 0; color: var(--pos-text-muted);
+    transition: all 0.2s; text-align: center; display: flex;
+    align-items: center; justify-content: center; gap: 5px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.ticket-tab:hover { color: #fff; }
+.ticket-tab.active { color: #fff; border-bottom-color: var(--pos-gold); background: transparent; }
+
+/* Body */
+.ticket-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+.ticket-body::-webkit-scrollbar { width: 3px; }
+.ticket-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+/* Items */
+.ticket-item {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 9px 0; border-bottom: 1px solid var(--pos-border);
+}
+.ticket-item:last-child { border-bottom: none; }
+.ticket-item .item-qty {
+    display: inline-block; background: rgba(245,166,35,0.15);
+    color: var(--pos-gold); font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 4px; margin-right: 6px;
+}
+.ticket-item .item-name { font-size: 13px; font-weight: 600; color: #fff; }
+.ticket-item .item-sub { font-size: 10px; color: var(--pos-text-muted); margin-top: 2px; }
+.ticket-item .item-price { font-weight: 700; font-size: 13px; color: #fff; white-space: nowrap; }
+
+/* Footer */
+.ticket-footer { padding: 12px 20px 14px; border-top: 1px solid var(--pos-border); background: rgba(0,0,0,0.2); flex-shrink: 0; overflow-y: auto; max-height: 340px; }
+.ticket-footer::-webkit-scrollbar { width: 3px; }
+.ticket-footer::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+.total-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; color: var(--pos-text-muted); }
+.total-row span:last-child { color: var(--pos-text); }
+.total-row.gran-total { font-size: 15px; font-weight: 800; border-top: 1px solid var(--pos-border); padding-top: 8px; margin-top: 5px; }
+.total-row.gran-total span { color: #fff; }
+.total-row.gran-total span:last-child { color: var(--pos-gold); font-size: 20px; }
+
+/* -- Pago section ----------------------------------- */
+.pago-section { margin-top: 10px; border-top: 1px solid var(--pos-border); padding-top: 10px; }
+.pago-section-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+    font-weight: 700; color: var(--pos-text-muted); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+}
+.metodo-pago-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.metodo-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--pos-card); border: 1.5px solid var(--pos-border);
+    border-radius: var(--pos-radius-sm); padding: 9px 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    color: var(--pos-text-muted); user-select: none;
+}
+.metodo-btn i { font-size: 13px; color: var(--pos-gold); }
+.metodo-btn:hover { border-color: var(--pos-gold); color: #fff; }
+.metodo-btn.active { background: rgba(245,166,35,0.15); color: var(--pos-gold); border-color: var(--pos-gold); }
+.metodo-btn.active i { color: var(--pos-gold); }
+
+/* Efectivo box */
+.efectivo-box { display: block; }
+.efectivo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.efectivo-header label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; color: var(--pos-text-muted); margin: 0; }
+.teclado-badge { font-size: 9px; background: rgba(16,185,129,0.15); color: var(--pos-green); border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; padding: 2px 6px; font-weight: 700; }
+
+.efectivo-input-wrap {
+    display: flex; align-items: center;
+    background: var(--pos-card); border: 1.5px solid var(--pos-border);
+    border-radius: var(--pos-radius-sm); padding: 0 14px;
+    margin-bottom: 8px; transition: border-color 0.2s;
+}
+.efectivo-input-wrap:focus-within { border-color: var(--pos-gold); }
+.efectivo-input-wrap .currency-sym { font-size: 18px; font-weight: 700; color: var(--pos-text-muted); margin-right: 6px; }
+.efectivo-input-wrap input {
+    background: transparent !important; border: none !important; outline: none !important;
+    font-size: 24px !important; font-weight: 800 !important; color: #fff !important;
+    text-align: right !important; padding: 10px 0 !important; width: 100% !important; box-shadow: none !important;
+}
+.efectivo-input-wrap input::placeholder { color: var(--pos-text-muted); font-size: 18px; }
+
+/* Quick amount buttons */
+.quick-amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
+.quick-btn {
+    background: var(--pos-card); border: 1px solid var(--pos-border);
+    border-radius: 6px; padding: 6px 4px; font-size: 11px; font-weight: 700;
+    color: var(--pos-text-muted); cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.quick-btn:hover { border-color: var(--pos-gold); color: var(--pos-gold); }
+.quick-btn.active { background: var(--pos-gold); color: #000; border-color: var(--pos-gold); }
+
+/* Cambio */
+.cambio-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+    background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.25);
+    border-radius: var(--pos-radius-sm); padding: 10px 14px;
+}
+.cambio-row-left { font-size: 11px; font-weight: 700; color: var(--pos-green); }
+.cambio-row-left span { display: block; font-size: 10px; color: var(--pos-text-muted); font-weight: 400; margin-top: 1px; }
+.cambio-row strong { font-family: var(--font-serif, Georgia, serif); font-size: 20px; font-weight: 800; color: var(--pos-green); }
+.aviso-falta {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 10px; padding: 8px 12px;
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--pos-red);
+}
+
+/* Bot�n cobrar */
+.btn-cobrar {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #f5a623, #e08e00);
+    color: #000; border: none; border-radius: 10px;
+    font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 8px; box-shadow: 0 4px 20px rgba(245,166,35,0.3);
+}
+.btn-cobrar:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(245,166,35,0.5); }
+.btn-cobrar:active { transform: translateY(0); }
+.btn-cobrar:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.btn-secundarios { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.btn-sec {
+    background: var(--pos-card); border: 1px solid var(--pos-border);
+    border-radius: 8px; padding: 9px 12px; font-size: 11px; font-weight: 700;
+    color: var(--pos-text-muted); cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-sec:hover { border-color: var(--pos-gold); color: var(--pos-gold); }
+
+/* -- Empty ticket ----------------------------------- */
+.empty-ticket {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; color: var(--pos-text-muted);
+    text-align: center; padding: 32px; gap: 0;
+}
+.empty-ticket i { color: var(--pos-gold); opacity: 0.3; margin-bottom: 16px; }
+.empty-ticket .empty-title { font-family: var(--font-serif, Georgia, serif); font-size: 18px; color: var(--pos-gold); margin-bottom: 8px; opacity: 0.7; }
+.empty-ticket .empty-sub { font-size: 12px; color: var(--pos-text-muted); line-height: 1.5; }
+
+/* -- Propinas --------------------------------------- */
+.tip-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.tip-btn {
+    background: var(--pos-card); border: 1.5px solid var(--pos-border);
+    border-radius: 8px; padding: 8px 4px; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; text-align: center; color: var(--pos-text-muted);
+}
+.tip-btn:hover { border-color: var(--pos-gold); color: var(--pos-gold); }
+.tip-btn.active { background: var(--pos-gold); color: #000; border-color: var(--pos-gold); }
+
+/* -- Divisi�n --------------------------------------- */
+.split-panel { background: var(--pos-card); border: 1px solid var(--pos-border); border-radius: 8px; padding: 14px; margin-top: 10px; }
+.split-panel label { font-size: 11px; color: var(--pos-text-muted); font-weight: 600; display: block; margin-bottom: 8px; }
+.split-controls { display: flex; align-items: center; gap: 10px; }
+.split-num-btn {
+    width: 32px; height: 32px; border: 1.5px solid var(--pos-border);
+    background: var(--pos-sidebar); border-radius: 8px; cursor: pointer;
+    font-size: 18px; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; transition: all 0.2s; color: var(--pos-text);
+}
+.split-num-btn:hover { background: var(--pos-gold); color: #000; border-color: var(--pos-gold); }
+#split-count { font-family: var(--font-serif, Georgia, serif); font-size: 24px; font-weight: 700; color: #fff; width: 40px; text-align: center; }
+#split-result { font-size: 12px; color: var(--pos-gold); font-weight: 700; margin-top: 8px; }
+
+/* -- LED dots --------------------------------------- */
+.led-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--pos-green); animation: led-pulse 2s infinite; margin-right: 5px; }
+.led-dot.ocupada { background: var(--pos-occupied); }
+@keyframes led-pulse { 0%, 100% { opacity:1; } 50% { opacity:.4; } }
+
+.admin-header-actions { color: var(--pos-text) !important; }
+.admin-header-actions strong { color: #fff !important; }
+
+/* Floating money badge */
+.floating-money-container { display: inline-flex; }
+.floating-money-bill {
+    background: rgba(16,185,129,0.2); color: var(--pos-green);
+    border: 1px solid rgba(16,185,129,0.35); font-size: 10px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 5px;
+    animation: led-pulse 2s infinite;
+}
+
+/* Sidebar footer */
+.admin-sidebar-footer { background: transparent !important; border-top: 1px solid var(--pos-border) !important; }
+.admin-sidebar-footer .btn-black { background: rgba(255,255,255,0.05) !important; color: var(--pos-text-muted) !important; border-radius: 8px !important; }
+.admin-sidebar-footer .btn-black:hover { background: rgba(239,68,68,0.12) !important; color: var(--pos-red) !important; }
+
+#alerta-permanencia { border-radius: 8px; font-size: 11px; font-weight: 600; }
+
+/* -- Historial -------------------------------------- */
+.historial-resumen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.historial-resumen div { background: var(--pos-card); border: 1px solid var(--pos-border); border-radius: 8px; padding: 12px; text-align: center; }
+.historial-resumen span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--pos-text-muted); margin-bottom: 4px; }
+.historial-resumen strong { font-family: var(--font-serif, Georgia, serif); font-size: 16px; color: var(--pos-gold); }
+.historial-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.historial-table thead th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--pos-text-muted); font-weight: 700; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--pos-border); position: sticky; top: 0; background: var(--pos-card); }
+.historial-table tbody td { padding: 9px 10px; border-bottom: 1px solid var(--pos-border); color: var(--pos-text); white-space: nowrap; }
+.historial-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.metodo-chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; background: rgba(245,166,35,0.12); color: var(--pos-gold); border: 1px solid rgba(245,166,35,0.3); }
+
+/* -- Cajero footer (sidebar) ------------------------ */
+.cajero-footer { border-top: 1px solid var(--pos-border); padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+.cajero-avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, var(--pos-gold), var(--pos-gold-dark)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #000; flex-shrink: 0; }
+.cajero-info .cajero-name { font-size: 12px; font-weight: 700; color: #fff; }
+.cajero-info .cajero-sub { font-size: 10px; color: var(--pos-text-muted); }
+
+/* -- Print ------------------------------------------ */
+@media print {
+    @page { size: 80mm auto; margin: 5mm; }
+    body { background: #fff !important; }
+    .admin-sidebar, .admin-header, .mesas-area, #toastContainerCaja,
+    .kfc-stripe-top, .filter-bar, .ticket-tabs, .pago-section,
+    #modal-historial, #btn-procesar, .btn-sec, .btn-cobrar { display: none !important; }
+    .caja-grid { display: block; height: auto; overflow: visible; }
+    .ticket-panel { border: none; border-radius: 0; box-shadow: none; height: auto; overflow: visible; background: #fff !important; }
+    .ticket-body { overflow: visible; }
+    .ticket-footer { background: #fff; max-height: none; }
+    .empty-ticket { display: none !important; }
+}

@@ -14,12 +14,14 @@ class InventoryControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $rolAdminId;
+
     public function setUp(): void
     {
         parent::setUp();
 
-        // Crear rol Administrador
-        Role::create(['id' => 1, 'name' => 'Administrador', 'description' => 'Admin']);
+        // Crear rol Administrador (IDs dinámicos: la migración ya siembra 'Cajero')
+        $this->rolAdminId = Role::firstOrCreate(['name' => 'Administrador'], ['description' => 'Admin'])->id;
     }
 
     // ─── Helper para crear admin con empleado ────────────────────────────────
@@ -31,7 +33,7 @@ class InventoryControllerTest extends TestCase
             'apellidos' => 'Test',
             'email'     => $email,
             'password'  => Hash::make($password),
-            'rol_id'    => 1,
+            'rol_id'    => $this->rolAdminId,
             'activo'    => true,
         ]);
 
@@ -100,6 +102,6 @@ class InventoryControllerTest extends TestCase
         ]);
 
         $response->assertStatus(403)
-                 ->assertJson(['success' => false, 'error' => 'PIN de autorización inválido.']);
+                 ->assertJson(['success' => false, 'error' => 'PIN de autorización inválido. El PIN es tu contraseña de acceso vigente: si la cambiaste (por ejemplo con la recuperación de contraseña), usa la nueva.']);
     }
 }

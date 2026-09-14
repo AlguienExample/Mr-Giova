@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Sabor a Pueblo — Portal de Acceso Personal</title>
+    <title>Sabor a Pueblo — Recuperar Contraseña</title>
     
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,10 +37,10 @@
                 </div>
             @endif
 
-            @if(session('success'))
+            @if(session('status'))
                 <div class="alert alert-success">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span>{{ session('success') }}</span>
+                    <span>{{ session('status') }}</span>
                 </div>
             @endif
 
@@ -50,10 +50,10 @@
 
             <h1 class="restaurant-name">Sabor<span> a Pueblo</span></h1>
             <div class="staff-access">
-                <i class="fa-solid fa-fire-burner"></i> Restaurante & Parrilla — Staff
+                <i class="fa-solid fa-fire-burner"></i> Recuperar Contraseña
             </div>
 
-            <form action="/login" method="POST">
+            <form action="{{ route('password.email') }}" method="POST">
                 @csrf
                 
                 <div class="form-group">
@@ -64,38 +64,12 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="password">CONTRASEÑA</label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-lock"></i>
-                        <input class="form-control" type="password" id="password" name="password" placeholder="••••••••" required>
-                    </div>
-                </div>
-
                 <div class="form-options">
-                    <label class="remember-me">
-                        <input type="checkbox" name="remember" id="remember">
-                        Recordarme
-                    </label>
-                    <a href="{{ route('password.request') }}" class="forgot-password">¿Olvidó su contraseña?</a>
+                    <a href="{{ route('login') }}" class="forgot-password"><i class="fa-solid fa-arrow-left"></i> Volver al inicio de sesión</a>
                 </div>
-
-                @if(session('sesion_activa'))
-                <div class="alert alert-warning sesion-activa-warning">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div class="sesion-activa-body">
-                        <strong>Sesión activa detectada</strong>
-                        <p>Se detectó una sesión activa con esta cuenta en otro dispositivo. Para continuar, confirma que deseas cerrar esa sesión e iniciar aquí.</p>
-                        <label class="sesion-activa-confirm">
-                            <input type="checkbox" name="forzar_sesion" value="1" required id="forzar_sesion">
-                            <span>Confirmo que quiero cerrar la sesión activa en el otro dispositivo e iniciar sesión aquí. <strong>Vuelve a escribir tu contraseña.</strong></span>
-                        </label>
-                    </div>
-                </div>
-                @endif
 
                 <button type="submit" class="btn-login">
-                    INICIAR SESIÓN <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    ENVIAR ENLACE DE RECUPERACIÓN <i class="fa-solid fa-paper-plane"></i>
                 </button>
             </form>
 

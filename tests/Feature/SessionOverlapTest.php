@@ -13,9 +13,9 @@ class SessionOverlapTest extends TestCase
 
     public function test_graceful_degradation_on_session_overlap()
     {
-        // 1. Crear roles
-        $rolAdmin = Role::create(['name' => 'Administrador', 'description' => 'Admin']);
-        $rolCajero = Role::create(['name' => 'Cajero', 'description' => 'Caja']);
+        // 1. Crear roles (la migración ya siembra 'Cajero': usar firstOrCreate)
+        $rolAdmin = Role::firstOrCreate(['name' => 'Administrador'], ['description' => 'Admin']);
+        $rolCajero = Role::firstOrCreate(['name' => 'Cajero'], ['description' => 'Caja']);
 
         // 2. Crear usuarios sin factory
         $admin = Usuario::create([
