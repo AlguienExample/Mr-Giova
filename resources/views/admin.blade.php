@@ -9,13 +9,31 @@
     <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        try {
-            if (localStorage.getItem('sabor-theme') === 'light') {
-                document.addEventListener('DOMContentLoaded', function () {
-                    document.body.classList.add('light-mode');
-                });
-            }
-        } catch (e) {}
+        // Aplicacion temprana e instantanea del tema (sin esperar DOMContentLoaded
+        // y sin necesidad de refrescar la pagina manualmente).
+        (function () {
+            try {
+                var t = localStorage.getItem('sabor-theme') || 'dark';
+                var l = t === 'light';
+                var h = document.documentElement;
+                h.classList.toggle('light-mode', l);
+                h.setAttribute('data-theme', t);
+                var applyBody = function () {
+                    try {
+                        if (document.body) {
+                            document.body.classList.toggle('light-mode', l);
+                            document.body.setAttribute('data-theme', t);
+                            return true;
+                        }
+                    } catch (e) {}
+                    return false;
+                };
+                if (!applyBody()) {
+                    var i = setInterval(function () { if (applyBody()) { clearInterval(i); } }, 10);
+                    document.addEventListener('DOMContentLoaded', function () { if (applyBody()) { clearInterval(i); } });
+                }
+            } catch (e) {}
+        })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Exportadores corporativos -->
@@ -1092,28 +1110,28 @@
 
 <!-- ── Modal: Ver Ticket ── -->
 <div class="mrgiova-modal" id="modalTicket" role="dialog" aria-modal="true" aria-labelledby="modalTicketTitulo">
-    <div class="modal-content" style="max-width:440px; background:#fffdf9;">
-        <div class="modal-header" style="border-bottom:1px dashed var(--gold);">
-            <h3 id="modalTicketTitulo" style="color:var(--gold-dark);">
+    <div class="modal-content ticket-paper" style="max-width:440px;">
+        <div class="modal-header ticket-paper-header" style="border-bottom:1px dashed var(--gold);">
+            <h3 id="modalTicketTitulo" class="ticket-paper-title">
                 Ticket de Venta <span id="ticketNum"></span>
             </h3>
-            <button class="modal-close-btn" onclick="closeModal('modalTicket')" aria-label="Cerrar" style="color:var(--gold-dark);">
+            <button class="modal-close-btn ticket-paper-close" onclick="closeModal('modalTicket')" aria-label="Cerrar">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
-        <div class="modal-body" style="font-family:var(--font-mono); font-size:13px;">
-            <div style="text-align:center; margin-bottom:20px;">
-                <strong style="font-family:var(--font-serif); font-size:22px; display:block;">Sabor a Pueblo</strong>
-                <span style="font-size:12px; color:var(--gray-600);">Restaurante Elite</span><br>
-                <span id="ticketDate" style="font-size:11px; color:var(--gray-400);"></span>
+        <div class="modal-body ticket-paper-body" style="font-family:var(--font-mono); font-size:13px;">
+            <div class="ticket-paper-brand">
+                <strong class="ticket-paper-brand-name">Sabor a Pueblo</strong>
+                <span class="ticket-paper-brand-sub">Restaurante Elite</span><br>
+                <span id="ticketDate" class="ticket-paper-date"></span>
             </div>
-            <div style="border-bottom:1px dashed var(--border); padding-bottom:12px; margin-bottom:14px;">
+            <div class="ticket-paper-meta">
                 <div><strong>Cliente:</strong> <span id="ticketClient"></span></div>
                 <div><strong>Mesa:</strong> <span id="ticketMesa"></span></div>
             </div>
-            <div id="ticketItems" style="margin-bottom:18px;"></div>
-            <div style="border-top:1px dashed var(--border); padding-top:14px; text-align:right; font-size:16px;">
-                <strong>Total: <span id="ticketTotal" style="color:var(--gold-dark);"></span></strong>
+            <div id="ticketItems" class="ticket-paper-items" style="margin-bottom:18px;"></div>
+            <div class="ticket-paper-total">
+                <strong>Total: <span id="ticketTotal"></span></strong>
             </div>
             <div style="margin-top:24px;">
                 <button class="btn-gold" style="width:100%;" onclick="window.print()">
@@ -1128,6 +1146,7 @@
 <!-- ═══════════════════════════════════════════════════════════════════════
      JAVASCRIPT (al final: los modales y el DOM deben existir cuando se ejecuta)
 ═══════════════════════════════════════════════════════════════════════ -->
+<script src="{{ asset('js/theme-toggle.js') }}"></script>
 <script src="{{ asset('js/pages/admin.js') }}"></script>
 
 <!-- ── Modal: Crear / Editar Producto ── -->

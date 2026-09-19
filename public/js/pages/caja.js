@@ -10,6 +10,9 @@ let soloJornada       = true; // filtro por defecto: solo mesas activas hoy
 let metodoPago        = 'Efectivo';
 let montoRecibido     = 0;
 
+// Etiqueta original del botón de cobro (para restaurarla tras error)
+const BTN_COBRAR_HTML = '<i class="fa-solid fa-check"></i> COBRAR E IMPRIMIR TICKET';
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function escapeHTML(str) {
     return String(str ?? '')
@@ -38,23 +41,63 @@ function toastCaja(title, msg, type = 'success') {
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 5000);
 }
 
-// ─── Filtro Jornada ────────────────────────────────────────────────────────
+// ─── Filtros (jornada + zona) ──────────────────────────────────────────────
+let zonaFiltro = null;
+
+function zonaKey(z) {
+    z = String(z || '').toLowerCase().trim();
+    if (z.includes('terraza')) return 'terraza';
+    if (z.includes('barra'))   return 'barra';
+    if (z.includes('principal')) return 'principal';
+    return z;
+}
+
+function aplicarFiltrosMesas() {
+    document.querySelectorAll('#mesasGrid .mesa-card').forEach(card => {
+        const activa      = card.dataset.activa === '1';
+        const tienePedido = card.dataset.tienePedido === '1';
+        const pasaJornada = !soloJornada || tienePedido || activa;
+        const pasaZona    = !zonaFiltro || zonaKey(card.dataset.zona) === zonaKey(zonaFiltro);
+        card.classList.toggle('hidden-by-filter', !(pasaJornada && pasaZona));
+    });
+    try {
+        localStorage.setItem('caja-solo-jornada', soloJornada ? '1' : '0');
+    } catch (e) { /* almacenamiento no disponible */ }
+}
+
+function filtrarZona(tabEl) {
+    const zona = tabEl.dataset.zona;
+    if (zonaFiltro === zona) {
+        zonaFiltro = null;
+        tabEl.classList.remove('active');
+    } else {
+        zonaFiltro = zona;
+        document.querySelectorAll('.zona-tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+    }
+    aplicarFiltrosMesas();
+}
+
 function toggleFiltroJornada(pillEl) {
     soloJornada = (pillEl && pillEl.id === 'pillFiltroJornada');
 
     document.getElementById('pillFiltroJornada').classList.toggle('active',  soloJornada);
     document.getElementById('pillTodasMesas').classList.toggle('active',    !soloJornada);
 
-    document.querySelectorAll('.mesa-card').forEach(card => {
-        const activa      = card.dataset.activa === '1';
-        const tienePedido = card.dataset.tienePedido === '1';
-        if (soloJornada) {
-            card.classList.toggle('hidden-by-filter', !tienePedido && !activa);
-        } else {
-            card.classList.remove('hidden-by-filter');
-        }
-    });
+    aplicarFiltrosMesas();
 }
+
+// Restaurar el filtro de jornada tras recargar (botón Actualizar)
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        if (localStorage.getItem('caja-solo-jornada') === '0') {
+            soloJornada = false;
+            document.getElementById('pillFiltroJornada').classList.remove('active');
+            document.getElementById('pillTodasMesas').classList.add('active');
+        }
+    } catch (e) { /* almacenamiento no disponible */ }
+    aplicarFiltrosMesas();
+});
 
 // ─── Selección de mesa ─────────────────────────────────────────────────────
 async function seleccionarMesa(id, numero) {
@@ -122,7 +165,8 @@ function mostrarPedido(numero, data, esMostrador = false) {
 
     const badge = document.getElementById('pedido-estado-badge');
     badge.textContent = data.estado.toUpperCase();
-    badge.className   = 'badge ' + (data.estado === 'Listo' ? 'badge-optimo' : 'badge-pendiente');
+    badge.className   = 'badge ' + (data.estado === 'Listo' ? 'badge-optimo'
+        : (data.estado === 'Entregado' ? 'badge-neutral' : 'badge-pendiente'));
 
     // Alerta de permanencia
     calcularAlertaPermanencia(data.created_at);
@@ -153,6 +197,7 @@ function mostrarPedido(numero, data, esMostrador = false) {
     document.getElementById('split-result').textContent = 'Cada persona paga: —';
     switchTicketTab('cuenta');
     resetPagoUI();
+    renderQuickAmounts();
 }
 
 function mostrarVacio(numero) {
@@ -201,16 +246,18 @@ function resetTipButtons() {
 }
 
 function selectTip(pct) {
-    propinaPct = pct;
+    // Tope 0–100: una propina negativa sería un descuento encubierto
+    propinaPct = Math.max(0, Math.min(100, parseFloat(pct) || 0));
     resetTipButtons();
     // Marcar botón activo
     document.querySelectorAll('.tip-btn').forEach(b => {
         const label = b.textContent.trim();
-        if ((pct === 0 && label === 'Sin propina') || label === pct + '%') {
+        if ((propinaPct === 0 && label === 'Sin propina') || label === propinaPct + '%') {
             b.classList.add('active');
         }
     });
     actualizarTotales();
+    renderQuickAmounts();
 }
 
 // ─── División de cuenta ────────────────────────────────────────────────────
@@ -265,26 +312,49 @@ function actualizarCambio() {
     }
 }
 
-// ─── Quick amount helpers ──────────────────────────────────────────────────
+// ─── Quick amount helpers (montos según el total) ──────────────────────────
+function fmtCorto(v) {
+    if (v >= 1000) {
+        const k = v / 1000;
+        return '$' + (Number.isInteger(k) ? k : k.toFixed(1).replace('.', ',')) + 'k';
+    }
+    return '$' + v;
+}
+
+function renderQuickAmounts() {
+    const cont = document.getElementById('quick-amounts');
+    if (!cont) return;
+    const total = Math.ceil(totalAPagar());
+    if (!(total > 0)) { cont.innerHTML = ''; return; }
+    const set = new Set([total]);
+    [10000, 20000, 50000, 100000, 200000, 500000].forEach(d => { if (d > total) set.add(d); });
+    const ops = [...set].sort((a, b) => a - b).slice(0, 4);
+    cont.innerHTML = ops.map((v, i) => i === 0
+        ? `<div class="quick-btn" id="qb-exacto" data-monto="${v}" onclick="setMonto(${v})">Exacto</div>`
+        : `<div class="quick-btn" data-monto="${v}" onclick="setMonto(${v})">${fmtCorto(v)}</div>`
+    ).join('');
+    marcarQuickBtn(document.getElementById('input-recibido')?.value);
+}
+
 function setMonto(monto) {
     const input = document.getElementById('input-recibido');
     if (!input) return;
-    if (monto === 0) {
-        // Exacto: pone el total exacto
-        input.value = Math.ceil(totalAPagar());
-    } else {
-        input.value = monto;
-    }
+    // monto 0 = compatibilidad: pone el total exacto
+    input.value = (monto === 0) ? Math.ceil(totalAPagar()) : monto;
     actualizarCambio();
     marcarQuickBtn(input.value);
 }
 
 function marcarQuickBtn(val) {
     const v = parseFloat(val) || 0;
-    document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
-    if (v === 30000)  { const el = document.getElementById('qb-30k');  if (el) el.classList.add('active'); }
-    if (v === 50000)  { const el = document.getElementById('qb-50k');  if (el) el.classList.add('active'); }
-    if (v === 100000) { const el = document.getElementById('qb-100k'); if (el) el.classList.add('active'); }
+    document.querySelectorAll('#quick-amounts .quick-btn').forEach(b => {
+        b.classList.toggle('active', v > 0 && parseFloat(b.dataset.monto) === v);
+    });
+    // "Exacto": marcar cuando el valor coincide con el total a pagar
+    if (v > 0 && Math.abs(v - totalAPagar()) < 0.5) {
+        const el = document.getElementById('qb-exacto');
+        if (el) el.classList.add('active');
+    }
 }
 
 // ─── WhatsApp ───────────────────────────────────────────────────────────────
@@ -361,17 +431,23 @@ function procesarPago() {
                 msg = `Cambio a entregar: ${fmt(data.cambio)}`;
             }
             toastCaja('✓ Pago procesado', msg, 'success');
-            setTimeout(() => window.location.reload(), 2200);
+            // El botón promete "COBRAR E IMPRIMIR": imprimir el ticket
+            // y después refrescar las mesas (el diálogo bloquea el timer).
+            try {
+                document.body.classList.add('print-ticket');
+                window.print();
+            } catch (e) { /* impresión no disponible */ }
+            setTimeout(() => window.location.reload(), 800);
         } else {
             toastCaja('Error', data.message || 'No se pudo procesar el pago.', 'error');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> PROCESAR PAGO';
+            btn.innerHTML = BTN_COBRAR_HTML;
         }
     })
     .catch(() => {
         toastCaja('Error', 'Error de conexión al procesar el pago.', 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> PROCESAR PAGO';
+        btn.innerHTML = BTN_COBRAR_HTML;
     });
 }
 
@@ -386,10 +462,32 @@ function cerrarHistorial() {
     document.getElementById('modal-historial').classList.remove('open');
 }
 
+// Cerrar el historial con Escape o clic en el fondo (sin recargar)
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarHistorial();
+});
+// Limpiar las clases de impresión al cerrar el diálogo del sistema
+window.addEventListener('afterprint', () => {
+    try {
+        document.body.classList.remove('print-ticket');
+        document.body.classList.remove('print-cierre');
+    } catch (e) { /* DOM no disponible */ }
+});
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-historial');
+    if (modal) {
+        modal.addEventListener('click', e => {
+            if (e.target === modal) cerrarHistorial();
+        });
+    }
+});
+
 function cargarHistorial() {
     const filaCarga = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--gray-400);">Cargando...</td></tr>';
     const tbody = document.getElementById('historial-rows');
     tbody.innerHTML = filaCarga;
+    const search = document.getElementById('historialSearch');
+    if (search) search.value = '';
 
     fetch('/caja/pagos')
         .then(r => r.json())
@@ -422,15 +520,33 @@ function cargarHistorial() {
         });
 }
 
+function filtrarHistorial() {
+    const q = (document.getElementById('historialSearch')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('#historial-rows tr').forEach(tr => {
+        tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function imprimirCierre() {
+    try {
+        document.body.classList.add('print-cierre');
+        window.print();
+    } catch (e) { /* impresión no disponible */ }
+    setTimeout(() => {
+        try { document.body.classList.remove('print-cierre'); } catch (err) { /* DOM no disponible */ }
+    }, 800);
+}
+
 function resumirHistorial(pagos) {
     const hoy = new Date();
     const hoyStr = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
 
     const deHoy = pagos.filter(p => (p.fecha || '').startsWith(hoyStr));
     const total = deHoy.reduce((s, p) => s + (p.total_final || 0), 0);
+    // "Efectivo" = total COBRADO en efectivo (no el recibido: ese incluye el cambio).
     const efectivo = deHoy
         .filter(p => p.metodo_pago === 'Efectivo')
-        .reduce((s, p) => s + (p.monto_recibido ?? 0), 0);
+        .reduce((s, p) => s + (p.total_final || 0), 0);
     const otros = deHoy
         .filter(p => p.metodo_pago !== 'Efectivo')
         .reduce((s, p) => s + (p.total_final || 0), 0);

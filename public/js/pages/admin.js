@@ -287,17 +287,54 @@ function renderSalesChart(data) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(0,0,0,0.04)' },
-                    ticks: { callback: v => '$' + (v / 1000) + 'k', font: { family: 'Outfit' } }
+                    grid: { color: chartGridColor() },
+                    ticks: { callback: v => '$' + (v / 1000) + 'k', font: { family: 'Outfit' }, color: chartTickColor() }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { font: { family: 'Outfit', weight: '500' } }
+                    ticks: { font: { family: 'Outfit', weight: '500' }, color: chartTickColor() }
                 }
             }
         }
     });
 }
+
+/** Color de rejilla/etiquetas del grafico segun el tema actual (sin reload). */
+function isLightTheme() {
+    try {
+        if (document.body && document.body.classList.contains('light-mode')) return true;
+        if (document.documentElement && document.documentElement.classList.contains('light-mode')) return true;
+        return (localStorage.getItem('sabor-theme') || 'dark') === 'light';
+    } catch (e) {
+        return false;
+    }
+}
+function chartGridColor() {
+    return isLightTheme() ? 'rgba(26,29,43,0.08)' : 'rgba(255,255,255,0.08)';
+}
+function chartTickColor() {
+    return isLightTheme() ? '#5B6478' : '#94A3B8';
+}
+
+// Repintar el grafico al cambiar de tema SIN recargar la pagina.
+window.addEventListener('sabor-theme-change', function (e) {
+    try {
+        if (!chartInstance) return;
+        var isLight = e && e.detail && e.detail.theme === 'light';
+        var grid = isLight ? 'rgba(26,29,43,0.08)' : 'rgba(255,255,255,0.08)';
+        var tick = isLight ? '#5B6478' : '#94A3B8';
+        if (chartInstance.options && chartInstance.options.scales) {
+            if (chartInstance.options.scales.y) {
+                if (chartInstance.options.scales.y.grid) chartInstance.options.scales.y.grid.color = grid;
+                if (chartInstance.options.scales.y.ticks) chartInstance.options.scales.y.ticks.color = tick;
+            }
+            if (chartInstance.options.scales.x && chartInstance.options.scales.x.ticks) {
+                chartInstance.options.scales.x.ticks.color = tick;
+            }
+        }
+        chartInstance.update();
+    } catch (err) { /* grafico opcional */ }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. RESERVAS
@@ -1662,15 +1699,15 @@ function viewTicket(id) {
                 p.detalles.forEach(item => {
                     const sub = formatCOP(item.subtotal);
                     itemsContainer.innerHTML += `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <div style="flex:1;">${item.cantidad}x ${item.producto ? escHtml(item.producto.nombre) : 'Item'}</div>
-                            <div style="text-align:right;">${sub}</div>
+                        <div class="ticket-line">
+                            <div class="ticket-line-name">${item.cantidad}x ${item.producto ? escHtml(item.producto.nombre) : 'Item'}</div>
+                            <div class="ticket-line-sub">${sub}</div>
                         </div>
-                        ${item.notas_especiales ? `<div style="font-size:11px; font-style:italic; padding-left:14px; color:var(--gray-400); margin-bottom:5px;">— ${escHtml(item.notas_especiales)}</div>` : ''}
+                        ${item.notas_especiales ? `<div class="ticket-line-note">— ${escHtml(item.notas_especiales)}</div>` : ''}
                     `;
                 });
             } else {
-                itemsContainer.innerHTML = '<div style="color:var(--gray-400); font-style:italic;">Sin detalle de ítems.</div>';
+                itemsContainer.innerHTML = '<div class="ticket-line-empty">Sin detalle de ítems.</div>';
             }
 
             document.getElementById('ticketTotal').textContent = formatCOP(p.total);

@@ -14,13 +14,31 @@
     <link rel="stylesheet" href="{{ asset('css/pages/login.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme-light.css') }}">
     <script>
-        try {
-            if (localStorage.getItem('sabor-theme') === 'light') {
-                document.addEventListener('DOMContentLoaded', function () {
-                    document.body.classList.add('light-mode');
-                });
-            }
-        } catch (e) {}
+        // Aplicacion temprana e instantanea del tema (sin esperar DOMContentLoaded
+        // y sin necesidad de refrescar la pagina manualmente).
+        (function () {
+            try {
+                var t = localStorage.getItem('sabor-theme') || 'dark';
+                var l = t === 'light';
+                var h = document.documentElement;
+                h.classList.toggle('light-mode', l);
+                h.setAttribute('data-theme', t);
+                var applyBody = function () {
+                    try {
+                        if (document.body) {
+                            document.body.classList.toggle('light-mode', l);
+                            document.body.setAttribute('data-theme', t);
+                            return true;
+                        }
+                    } catch (e) {}
+                    return false;
+                };
+                if (!applyBody()) {
+                    var i = setInterval(function () { if (applyBody()) { clearInterval(i); } }, 10);
+                    document.addEventListener('DOMContentLoaded', function () { if (applyBody()) { clearInterval(i); } });
+                }
+            } catch (e) {}
+        })();
     </script>
 </head>
 <body>

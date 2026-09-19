@@ -9,13 +9,31 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
-        try {
-            if (localStorage.getItem('sabor-theme') === 'light') {
-                document.addEventListener('DOMContentLoaded', function () {
-                    document.body.classList.add('light-mode');
-                });
-            }
-        } catch (e) {}
+        // Aplicacion temprana e instantanea del tema (sin esperar DOMContentLoaded
+        // y sin necesidad de refrescar la pagina manualmente).
+        (function () {
+            try {
+                var t = localStorage.getItem('sabor-theme') || 'dark';
+                var l = t === 'light';
+                var h = document.documentElement;
+                h.classList.toggle('light-mode', l);
+                h.setAttribute('data-theme', t);
+                var applyBody = function () {
+                    try {
+                        if (document.body) {
+                            document.body.classList.toggle('light-mode', l);
+                            document.body.setAttribute('data-theme', t);
+                            return true;
+                        }
+                    } catch (e) {}
+                    return false;
+                };
+                if (!applyBody()) {
+                    var i = setInterval(function () { if (applyBody()) { clearInterval(i); } }, 10);
+                    document.addEventListener('DOMContentLoaded', function () { if (applyBody()) { clearInterval(i); } });
+                }
+            } catch (e) {}
+        })();
     </script>
     <link rel="stylesheet" href="{{ asset('css/pages/caja.css') }}">
 </head>
@@ -97,13 +115,17 @@
                 <!-- Mapa de Mesas -->
                 <div class="mesas-area">
                     <div class="filter-bar">
-                        {{-- Zone tabs --}}
+                        {{-- Zone tabs (filtran por zona; clic de nuevo = ver todas) --}}
                         <div class="zona-tabs">
-                            <div class="zona-tab active">Planta Principal</div>
-                            <div class="zona-tab">Terraza Jardín</div>
-                            <div class="zona-tab">Barra Alta</div>
+                            <div class="zona-tab" data-zona="Planta Principal" onclick="filtrarZona(this)">Planta Principal</div>
+                            <div class="zona-tab" data-zona="Terraza Jardín" onclick="filtrarZona(this)">Terraza Jardín</div>
+                            <div class="zona-tab" data-zona="Barra Alta" onclick="filtrarZona(this)">Barra Alta</div>
                         </div>
                         <div style="flex:1;"></div>
+                        <button class="toggle-pill" id="btn-refresh-caja" onclick="window.location.reload()" title="Actualizar mesas y pedidos">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            Actualizar
+                        </button>
                         <label class="toggle-pill active" id="pillFiltroJornada" onclick="toggleFiltroJornada(this)">
                             <i class="fa-solid fa-calendar-day"></i>
                             Solo Activas Hoy
@@ -152,6 +174,7 @@
                             <div class="mesa-card {{ $claseEstado }} {{ $ocultarPorFiltro ? 'hidden-by-filter' : '' }}"
                                  data-id="{{ $mesa['id'] }}"
                                  data-numero="{{ $mesa['numero_mesa'] }}"
+                                 data-zona="{{ $mesa['zona'] }}"
                                  data-activa="{{ $esActiva ? '1' : '0' }}"
                                  data-tiene-pedido="{{ $tienePedidoHoy ? '1' : '0' }}"
                                  onclick="seleccionarMesa({{ $mesa['id'] }}, '{{ str_pad($mesa['numero_mesa'], 2, '0', STR_PAD_LEFT) }}')">
@@ -340,12 +363,7 @@
                                         <span class="currency-sym">$</span>
                                         <input type="number" id="input-recibido" min="0" step="1000" placeholder="0" oninput="actualizarCambio(); marcarQuickBtn(this.value)">
                                     </div>
-                                    <div class="quick-amounts">
-                                        <div class="quick-btn" onclick="setMonto(0)">Exacto</div>
-                                        <div class="quick-btn" id="qb-30k" onclick="setMonto(30000)">$30k</div>
-                                        <div class="quick-btn" id="qb-50k" onclick="setMonto(50000)">$50k</div>
-                                        <div class="quick-btn" id="qb-100k" onclick="setMonto(100000)">$100k</div>
-                                    </div>
+                                    <div class="quick-amounts" id="quick-amounts"></div>
                                     <div class="cambio-row">
                                         <div class="cambio-row-left">
                                             CAMBIO A DEVOLVER
@@ -383,9 +401,18 @@
     <div class="modal-content" style="max-width:820px;">
         <div class="modal-header">
             <h3><i class="fa-solid fa-clock-rotate-left" style="margin-right:8px;"></i>Historial de Pagos</h3>
-            <button class="modal-close-btn" onclick="cerrarHistorial()"><i class="fa-solid fa-xmark"></i></button>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn-outline" style="padding:8px 14px; font-size:12px;" onclick="imprimirCierre()" title="Imprimir cierre de caja del día">
+                    <i class="fa-solid fa-print"></i> Cierre
+                </button>
+                <button class="modal-close-btn" onclick="cerrarHistorial()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
         <div class="modal-body">
+            <div class="search-bar" style="margin-bottom:12px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="historialSearch" placeholder="Buscar por mesa, pedido o cajero..." oninput="filtrarHistorial()">
+            </div>
             <div class="historial-resumen" id="historial-resumen">
                 <div><span>Pagos hoy</span><strong id="hist-count-hoy">0</strong></div>
                 <div><span>Total cobrado</span><strong id="hist-total-hoy">$0</strong></div>

@@ -423,3 +423,199 @@ body.light-mode .input-wrapper input {
 body.light-mode .restaurant-name {
     color: #1A1D2B;
 }
+
+/* ══════════════════════════════════════════════
+   TEMA INSTANTANEO SIN REFRESH — espejo en <html>
+   El snippet del <head> marca <html> antes del primer
+   pintado; theme-toggle.js sincroniza <body> al instante.
+   ══════════════════════════════════════════════ */
+html.light-mode {
+    --gold: #B8860B;
+    --gold-light: #D49B00;
+    --gold-dark: #8A6500;
+    --gold-bg: rgba(184, 134, 11, 0.12);
+    --gold-line: rgba(184, 134, 11, 0.35);
+    --black: #1A1D2B;
+    --gray-900: #1A1D2B;
+    --gray-800: #2E3448;
+    --gray-600: #5B6478;
+    --gray-400: #7C869C;
+    --gray-300: #D8DDE8;
+    --gray-200: #E8ECF3;
+    --gray-100: #F1F4F9;
+    --gray-50: #F7F9FC;
+    --white: #FFFFFF;
+    --bg-main: #F2F4F8;
+    --bg-sidebar: #FFFFFF;
+    --border: #E2E8F0;
+    --kitchen-bg-body: #F2F4F8;
+    --kitchen-bg-sidebar: #FFFFFF;
+    --kitchen-bg-column: #EAF0F8;
+    --kitchen-bg-card: #FFFFFF;
+    --kitchen-bg-header: #FFFFFF;
+    --kitchen-border: #E2E8F0;
+    --kitchen-text-main: #1A1D2B;
+    --kitchen-text-muted: #5B6478;
+    --kitchen-gold: #B8860B;
+    --kitchen-gold-dark: #8A6500;
+    /* Terminal Caja / POS en claro */
+    --pos-bg: #F2F4F8;
+    --pos-sidebar: #FFFFFF;
+    --pos-card: #FFFFFF;
+    --pos-card-hover: #F1F4F9;
+    --pos-border: #E2E8F0;
+    --pos-text: #1A1D2B;
+    --pos-text-muted: #5B6478;
+    --pos-gold: #B8860B;
+    --pos-gold-dark: #8A6500;
+    --pos-gold-bg: rgba(184, 134, 11, 0.12);
+    color-scheme: light;
+}
+html.light-mode body {
+    background: var(--bg-main);
+}
+/* Transicion suave = el fondo "refresca solo" sin recargar */
+body,
+.admin-app,
+.admin-main,
+.admin-sidebar,
+.kitchen-main,
+.kitchen-sidebar,
+.menu-app,
+.ticket-panel,
+.dashboard-card,
+.panel-box,
+.mesa-card {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* ─── CAJA / POS en modo claro (usa variables --pos-*) ─── */
+html.light-mode body.admin-page {
+    background: var(--pos-bg);
+}
+html.light-mode .admin-sidebar,
+body.light-mode .admin-sidebar {
+    background: var(--pos-sidebar);
+    border-right: 1px solid var(--pos-border);
+}
+html.light-mode .admin-main,
+body.light-mode .admin-main {
+    background: var(--pos-bg);
+}
+html.light-mode .admin-header,
+body.light-mode .admin-header {
+    background: var(--pos-sidebar);
+    border-bottom: 1px solid var(--pos-border);
+}
+html.light-mode .admin-nav a,
+body.light-mode .admin-nav a {
+    color: var(--pos-text-muted);
+}
+html.light-mode .mesa-card,
+body.light-mode .mesa-card {
+    background: var(--pos-card);
+    border-color: var(--pos-border);
+    color: var(--pos-text);
+}
+html.light-mode .mesa-card:hover,
+body.light-mode .mesa-card:hover {
+    background: var(--pos-card-hover);
+}
+
+/* ─── CAJA / POS: textos blancos fijos que en claro serían invisibles ─── */
+html.light-mode .mesa-num,
+body.light-mode .mesa-num {
+    color: var(--pos-text);
+}
+html.light-mode .admin-header h1,
+html.light-mode .admin-header h1 span,
+body.light-mode .admin-header h1,
+body.light-mode .admin-header h1 span {
+    color: var(--pos-text) !important;
+}
+html.light-mode .mesa-status-label,
+body.light-mode .mesa-status-label {
+    background: rgba(26, 29, 43, 0.06);
+}
+html.light-mode .ticket-header-brand .ticket-logo-text,
+body.light-mode .ticket-header-brand .ticket-logo-text {
+    color: var(--gold-dark);
+}
+html.light-mode .ticket-item .item-price,
+body.light-mode .ticket-item .item-price {
+    color: var(--gold-dark);
+}
+html.light-mode .cambio-row,
+body.light-mode .cambio-row {
+    background: rgba(16, 185, 129, 0.12);
+}
+html.light-mode .teclado-badge,
+body.light-mode .teclado-badge {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+/* ─── TICKET Historial > Ver Ticket en modo claro ─── */
+body.light-mode #modalTicket .modal-content.ticket-paper,
+html.light-mode #modalTicket .modal-content.ticket-paper {
+    background: #fffdf9;
+    color: #1A1D2B;
+    border: 1px solid #E2E8F0;
+}
+body.light-mode #modalTicket .ticket-paper-title,
+body.light-mode #modalTicket .ticket-paper-close,
+html.light-mode #modalTicket .ticket-paper-title,
+html.light-mode #modalTicket .ticket-paper-close {
+    color: #8A6500;
+}
+body.light-mode #modalTicket .ticket-paper-body,
+html.light-mode #modalTicket .ticket-paper-body {
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-paper-brand-name,
+html.light-mode #modalTicket .ticket-paper-brand-name {
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-paper-brand-sub,
+html.light-mode #modalTicket .ticket-paper-brand-sub {
+    color: #5B6478;
+}
+body.light-mode #modalTicket .ticket-paper-date,
+html.light-mode #modalTicket .ticket-paper-date {
+    color: #7C869C;
+}
+body.light-mode #modalTicket .ticket-paper-meta,
+html.light-mode #modalTicket .ticket-paper-meta {
+    border-bottom-color: #E2E8F0;
+    color: #2E3448;
+}
+body.light-mode #modalTicket .ticket-paper-meta strong,
+html.light-mode #modalTicket .ticket-paper-meta strong {
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-paper-items,
+body.light-mode #modalTicket .ticket-line,
+html.light-mode #modalTicket .ticket-paper-items,
+html.light-mode #modalTicket .ticket-line {
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-line-sub,
+html.light-mode #modalTicket .ticket-line-sub {
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-line-note,
+html.light-mode #modalTicket .ticket-line-note {
+    color: #5B6478;
+}
+body.light-mode #modalTicket .ticket-line-empty,
+html.light-mode #modalTicket .ticket-line-empty {
+    color: #7C869C;
+}
+body.light-mode #modalTicket .ticket-paper-total,
+html.light-mode #modalTicket .ticket-paper-total {
+    border-top-color: #E2E8F0;
+    color: #1A1D2B;
+}
+body.light-mode #modalTicket .ticket-paper-total #ticketTotal,
+html.light-mode #modalTicket .ticket-paper-total #ticketTotal {
+    color: #8A6500;
+}

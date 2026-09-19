@@ -1329,3 +1329,91 @@ table.haute-table tbody tr:last-child td { border-bottom: none; }
     .ticket-panel.thermal-ticket { border-radius: var(--radius-sm); }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   TICKET DE VENTA — Historial > Ver Ticket (legible en oscuro y claro)
+   Base = modo oscuro (por defecto). El modo claro se sobrescribe
+   en theme-light.css. Sin fondos claros fijos con texto claro.
+   ═══════════════════════════════════════════════════════════ */
+#modalTicket .modal-content.ticket-paper {
+    background: #1E2232;
+    color: #F8FAFC;
+    border: 1px solid #262B3D;
+}
+#modalTicket .ticket-paper-header {
+    border-bottom: 1px dashed rgba(255, 193, 7, 0.55);
+}
+#modalTicket .ticket-paper-title,
+#modalTicket .ticket-paper-close {
+    color: #FFD54F;
+}
+#modalTicket .ticket-paper-body {
+    color: #F8FAFC;
+}
+#modalTicket .ticket-paper-brand {
+    text-align: center;
+    margin-bottom: 20px;
+}
+#modalTicket .ticket-paper-brand-name {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    display: block;
+    color: #FFFFFF;
+}
+#modalTicket .ticket-paper-brand-sub {
+    font-size: 12px;
+    color: #CBD5E1;
+}
+#modalTicket .ticket-paper-date {
+    font-size: 11px;
+    color: #94A3B8;
+}
+#modalTicket .ticket-paper-meta {
+    border-bottom: 1px dashed #3A4158;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    color: #E2E8F0;
+}
+#modalTicket .ticket-paper-meta strong {
+    color: #FFFFFF;
+}
+#modalTicket .ticket-paper-items {
+    color: #F8FAFC;
+}
+#modalTicket .ticket-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    color: #F8FAFC;
+}
+#modalTicket .ticket-line-name {
+    flex: 1;
+}
+#modalTicket .ticket-line-sub {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+#modalTicket .ticket-line-note {
+    font-size: 11px;
+    font-style: italic;
+    padding-left: 14px;
+    color: #CBD5E1;
+    margin-bottom: 5px;
+}
+#modalTicket .ticket-line-empty {
+    color: #94A3B8;
+    font-style: italic;
+}
+#modalTicket .ticket-paper-total {
+    border-top: 1px dashed #3A4158;
+    padding-top: 14px;
+    text-align: right;
+    font-size: 16px;
+    color: #FFFFFF;
+}
+#modalTicket .ticket-paper-total #ticketTotal {
+    color: #FFD54F;
+}
+

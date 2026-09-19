@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // ngrok (y cualquier proxy HTTPS) termina TLS en su borde y reenvía
+        // en http interno. Sin esto Laravel ve esquema http + IP del proxy:
+        // redirects http<->https en bucle, cookies inseguras y todos los
+        // dispositivos compartiendo la misma IP en los throttles.
+        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'role'           => \App\Http\Middleware\RoleMiddleware::class,
             'single.session' => \App\Http\Middleware\SingleSession::class,

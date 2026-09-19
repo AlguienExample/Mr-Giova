@@ -78,10 +78,17 @@ body.admin-page {
 /* -- POS main grid ---------------------------------- */
 .caja-grid {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: minmax(0, 1fr) 410px;
     gap: 20px;
     height: calc(100vh - 120px);
     overflow: hidden;
+}
+
+/* En pantallas anchas, dar más aire a la cuenta */
+@media (min-width: 1400px) {
+    .caja-grid {
+        grid-template-columns: minmax(0, 1fr) 450px;
+    }
 }
 
 .mesas-area {
@@ -359,19 +366,30 @@ body.admin-page {
 }
 
 .ticket-header {
-    padding: 18px 20px;
+    padding: 20px 22px;
     border-bottom: 1px solid var(--border);
     background: var(--gray-100);
 }
 
+#pedido-titulo {
+    font-size: 23px !important;
+    line-height: 1.2;
+}
+
+#pedido-info {
+    font-size: 12.5px !important;
+    margin-top: 2px;
+}
+
 .ticket-body {
     flex: 1;
+    min-height: 220px;
     overflow-y: auto;
-    padding: 16px 20px;
+    padding: 18px 22px;
 }
 
 .ticket-footer {
-    padding: 16px 20px;
+    padding: 18px 22px;
     border-top: 1px solid var(--border);
     background: var(--gray-100);
 }
@@ -380,8 +398,10 @@ body.admin-page {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 9px 0;
+    gap: 14px;
+    padding: 12px 0;
     border-bottom: 1px dashed var(--border);
+    line-height: 1.5;
 }
 
 .ticket-item:last-child {
@@ -391,18 +411,18 @@ body.admin-page {
 .total-row {
     display: flex;
     justify-content: space-between;
-    padding: 4px 0;
-    font-size: 12px;
+    padding: 5px 0;
+    font-size: 13.5px;
     color: var(--gray-400);
 }
 
 .total-row.gran-total {
-    font-size: 17px;
-    font-weight: 700;
+    font-size: 21px;
+    font-weight: 800;
     color: var(--black);
     border-top: 1px solid var(--border);
-    padding-top: 10px;
-    margin-top: 6px;
+    padding-top: 12px;
+    margin-top: 8px;
 }
 
 .empty-ticket {
@@ -512,8 +532,8 @@ body.admin-page {
 }
 
 .ticket-tab {
-    padding: 5px 12px;
-    font-size: 11px;
+    padding: 7px 14px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     border-radius: 4px;
@@ -524,4 +544,429 @@ body.admin-page {
 .ticket-tab.active {
     background: var(--black);
     color: var(--white);
+}
+
+/* ── Detalle de ítems del ticket ──────────────────── */
+.ticket-item .item-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--black);
+}
+.ticket-item .item-qty {
+    font-family: var(--font-mono, monospace);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--pos-gold);
+    margin-right: 8px;
+}
+.ticket-item .item-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 3px;
+}
+.ticket-item .item-price {
+    font-size: 15px;
+}
+.empty-ticket .empty-title {
+    font-family: var(--font-serif, Georgia, serif);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--black);
+    margin-top: 12px;
+}
+.empty-ticket .empty-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 4px;
+    max-width: 260px;
+}
+
+/* ── Sección de pago ──────────────────────────────── */
+.pago-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+.pago-section-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 10px;
+}
+.metodo-pago-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.metodo-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--gray-100);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray-800);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.metodo-btn i {
+    font-size: 15px;
+    color: var(--pos-gold);
+}
+.metodo-btn:hover {
+    border-color: var(--pos-gold);
+    transform: translateY(-1px);
+}
+.metodo-btn.active {
+    background: var(--black);
+    border-color: var(--black);
+    color: var(--white);
+}
+.metodo-btn.active i {
+    color: var(--pos-gold);
+}
+
+/* ── Caja de efectivo ─────────────────────────────── */
+.efectivo-box {
+    background: var(--gray-50);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.efectivo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.efectivo-header label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--gray-600);
+}
+.teclado-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.efectivo-input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 12px;
+    margin-bottom: 10px;
+}
+.efectivo-input-wrap:focus-within {
+    border-color: var(--pos-gold);
+    box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.2);
+}
+.currency-sym {
+    font-weight: 800;
+    color: var(--pos-gold);
+    margin-right: 6px;
+}
+#input-recibido {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--black);
+    font-size: 20px;
+    font-weight: 800;
+    font-family: var(--font-mono, monospace);
+    padding: 10px 0;
+    min-width: 0;
+}
+.quick-amounts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.quick-btn {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-800);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+.quick-btn:hover {
+    border-color: var(--pos-gold);
+    color: var(--pos-gold);
+}
+.quick-btn.active {
+    background: var(--black);
+    border-color: var(--black);
+    color: var(--white);
+}
+.cambio-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.cambio-row-left {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #10B981;
+    display: flex;
+    flex-direction: column;
+}
+.cambio-row-left span {
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--gray-400);
+}
+#txt-cambio {
+    font-family: var(--font-mono, monospace);
+    font-size: 20px;
+    font-weight: 800;
+    color: #10B981;
+}
+.aviso-falta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: var(--danger, #EF4444);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+/* ── Botones de cobro ─────────────────────────────── */
+.btn-cobrar {
+    width: 100%;
+    background: linear-gradient(135deg, #10B981, #0B8A5F);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+}
+.btn-cobrar:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+.btn-cobrar:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+.btn-secundarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+.btn-sec {
+    background: var(--gray-100);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-800);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-sec:hover {
+    border-color: var(--pos-gold);
+    color: var(--pos-gold);
+}
+
+/* ── Historial de pagos ───────────────────────────── */
+.historial-resumen {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.historial-resumen > div {
+    background: var(--gray-50);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.historial-resumen span {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-400);
+    font-weight: 700;
+}
+.historial-resumen strong {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--black);
+    font-family: var(--font-mono, monospace);
+}
+.historial-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.historial-table thead th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-400);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.historial-table tbody td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--gray-800);
+    white-space: nowrap;
+}
+.metodo-chip {
+    display: inline-block;
+    background: var(--gold-bg, rgba(255, 193, 7, 0.12));
+    border: 1px solid var(--gold-line, rgba(255, 193, 7, 0.3));
+    color: var(--gold-dark, #D49B00);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+/* ── Responsive: la terminal debe usarse en tabletas ── */
+@media (max-width: 1024px) {
+    .caja-grid {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+    }
+    .mesas-area {
+        overflow: visible;
+    }
+    .ticket-panel {
+        min-height: 480px;
+    }
+    .historial-resumen {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 560px) {
+    .metodo-pago-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .quick-amounts {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .btn-secundarios {
+        grid-template-columns: 1fr;
+    }
+    .filter-bar {
+        gap: 6px;
+    }
+}
+
+/* ── Impresión: solo el ticket o solo el cierre ────── */
+@media print {
+    /* Ticket de cobro: ocultar todo menos la cuenta */
+    body.print-ticket .admin-sidebar,
+    body.print-ticket .mesas-area,
+    body.print-ticket .admin-header,
+    body.print-ticket .kfc-stripe-top,
+    body.print-ticket #toastContainerCaja,
+    body.print-ticket .mrgiova-modal,
+    body.print-ticket .ticket-tabs,
+    body.print-ticket .pago-section,
+    body.print-ticket .btn-cobrar,
+    body.print-ticket .btn-secundarios,
+    body.print-ticket .theme-toggle-btn {
+        display: none !important;
+    }
+    body.print-ticket .admin-app {
+        display: block;
+        height: auto;
+    }
+    body.print-ticket .admin-main {
+        background: #fff !important;
+    }
+    body.print-ticket .caja-grid {
+        display: block;
+        height: auto;
+        overflow: visible;
+    }
+    body.print-ticket .ticket-panel {
+        border: none;
+        box-shadow: none;
+        height: auto;
+        color: #000;
+    }
+    body.print-ticket .ticket-header,
+    body.print-ticket .ticket-footer {
+        background: #fff !important;
+    }
+    body.print-ticket .ticket-body {
+        overflow: visible;
+    }
+    /* Cierre de caja: ocultar la app y mostrar el modal plano */
+    body.print-cierre .admin-app,
+    body.print-cierre .kfc-stripe-top,
+    body.print-cierre #toastContainerCaja,
+    body.print-cierre .theme-toggle-btn {
+        display: none !important;
+    }
+    body.print-cierre .mrgiova-modal {
+        position: static;
+        opacity: 1 !important;
+        visibility: visible !important;
+        background: none;
+        padding: 0;
+    }
+    body.print-cierre .mrgiova-modal .modal-content {
+        transform: none !important;
+        box-shadow: none;
+        max-width: 100%;
+        max-height: none;
+    }
+    body.print-cierre .modal-close-btn,
+    body.print-cierre .btn-outline,
+    body.print-cierre #historialSearch {
+        display: none !important;
+    }
 }
